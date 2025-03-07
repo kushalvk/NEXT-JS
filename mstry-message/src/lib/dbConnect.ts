@@ -1,6 +1,5 @@
-import { log } from "console";
-import mongoose, { Mongoose } from "mongoose";
 
+import mongoose, { Mongoose } from "mongoose";
 
 type ConnectionObject = {
     isConnected?: number
