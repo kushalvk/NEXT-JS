@@ -10,13 +10,11 @@ import {
 } from '@react-email/components';
 
 interface VerificationEmailProps {
-    usernamre: string;
+    username: string;
     otp: string;
 }
 
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-expect-error
-export default function VerificationEmail({ username, otp}: VerificationEmailProps) {
+export default function VerificationEmail({username, otp}: VerificationEmailProps) {
     return (
         <Html>
             <Head>
