@@ -80,7 +80,7 @@ export async function POST(req: Request) {
         return Response.json(
             {
                 success: false,
-                message: "Error ragistering User"
+                message: "Error registering User"
             },
             {
                 status: 500
