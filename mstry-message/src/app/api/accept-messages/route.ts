@@ -70,12 +70,12 @@ export async function GET() {
                 success: false,
                 message: "User not found",
             }, {status: 404});
-        } else {
-            return Response.json({
-                success: true,
-                isAcceptingMessages: foundUser.isAcceptingMessage
-            }, {status: 200});
         }
+
+        return Response.json({
+            success: true,
+            isAcceptingMessages: foundUser.isAcceptingMessage
+        }, {status: 200});
     } catch (e) {
         console.error("Error in getting message accepting status", e);
         return Response.json({
