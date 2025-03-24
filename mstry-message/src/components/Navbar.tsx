@@ -14,10 +14,10 @@ const page = () => {
             <div className={"container mx-auto flex flex-col md:flex-row justify-between items-center"}>
                 <a href="#" className={"text-xl font-bold mb-4 md:mb-0"}>Mystry Message</a>
                 {session ? (
-                    <>
+                    <div className={"flex flex-col md:flex-row justify-between items-center"}>
                         <span className={"mr-4"}> Welcome, {user?.username || user?.email}</span>
                         <Button className={"w-fit md:m-auto"} onClick={() => signOut()}>Logout</Button>
-                    </>
+                    </div>
                 ) : (
                     <Link href={"/sign-in"}>
                         <Button className={"w-fit md:m-aut"}>Login</Button>
