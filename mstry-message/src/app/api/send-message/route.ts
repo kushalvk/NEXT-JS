@@ -9,6 +9,7 @@ export async function POST(request: Request) {
 
     try {
         const user = await UserModel.findOne({username});
+        console.log(user);
 
         if (!user) {
             return Response.json({
@@ -22,7 +23,7 @@ export async function POST(request: Request) {
             return Response.json({
                 success: false,
                 message: "User is not accepting the message",
-            }, {status: 403});
+            }, {status: 201});
         }
 
         const newMessages = {content, createdAt: new Date()};
@@ -32,7 +33,7 @@ export async function POST(request: Request) {
         return Response.json({
             success: true,
             message: "Message sent successfully",
-        }, {status: 500});
+        }, {status: 200});
     } catch (e) {
         console.error("Error to adding messages", e);
         return Response.json({

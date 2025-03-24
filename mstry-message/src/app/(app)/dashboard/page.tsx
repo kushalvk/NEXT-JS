@@ -14,7 +14,6 @@ import {Switch} from "@/components/ui/switch";
 import {Separator} from "@/components/ui/separator";
 import {Loader2, RefreshCcw} from "lucide-react";
 import MessageCard from "@/components/MessageCard";
-import {User} from "next-auth";
 
 const page = () => {
 
@@ -56,10 +55,10 @@ const page = () => {
         setLoading(true);
         setIsSwitchLoading(false);
         try {
-            const response = await axios.get<ApiResponse>(`/api/messages`);
+            const response = await axios.get<ApiResponse>(`/api/get-messages`);
             setMessages(response.data.messages || []);
             if (refresh) {
-                toast.error("Showing Latest messages")
+                toast.loading("Showing Latest messages")
             }
         } catch (error) {
             const axiosError = error as AxiosError<ApiResponse>;
@@ -79,7 +78,7 @@ const page = () => {
     // handle switch change
     const handleSwitchChange = async () => {
         try {
-            const response = await axios.post<ApiResponse>(`/api/accept-messages`, {
+            await axios.post<ApiResponse>(`/api/accept-messages`, {
                 acceptMessages: !acceptMessages,
             })
             // @ts-ignore
@@ -87,11 +86,10 @@ const page = () => {
             toast.warning('default')
         } catch (error) {
             const axiosError = error as AxiosError<ApiResponse>;
-            toast.error(axiosError.response?.data.message || "Fail to fetch  Message Settings");
+            toast.error(axiosError.response?.data.message || "Fail to fetch Message Settings");
         }
     }
-
-    const { username } = session?.user as User;
+    const username = session?.user?.username || "";
     // TODO: do more research
     const baseUrl = `${window.location.protocol}//${window.location.host}`;
     const profileUrl = `${baseUrl}/u/${username}`;
@@ -134,7 +132,7 @@ const page = () => {
             <Separator/>
 
             <Button
-                className={"mt-4"}
+                className={"m-4"}
                 variant={"outline"}
                 onClick={(e) => {
                     e.preventDefault();

@@ -55,7 +55,7 @@ const signin = () => {
                                 <FormItem>
                                     <FormLabel>Email/Username</FormLabel>
                                     <FormControl>
-                                        <Input placeholder="Email/Username"
+                                        <Input placeholder="Email"
                                                {...field}
                                         />
                                     </FormControl>

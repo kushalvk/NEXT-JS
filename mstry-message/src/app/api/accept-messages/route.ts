@@ -22,7 +22,7 @@ export async function POST(request: Request) {
 
     try {
         const updatedUser = await UserModel.findOneAndUpdate(
-            userId,
+            { _id: userId },
             {isAcceptingMessage: acceptMessages},
             {new: true}
         )
@@ -74,7 +74,7 @@ export async function GET() {
 
         return Response.json({
             success: true,
-            isAcceptingMessages: foundUser.isAcceptingMessage
+            isAcceptingMessage: foundUser.isAcceptingMessage
         }, {status: 200});
     } catch (e) {
         console.error("Error in getting message accepting status", e);
