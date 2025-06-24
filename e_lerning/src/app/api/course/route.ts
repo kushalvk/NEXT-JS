@@ -184,8 +184,24 @@ export async function PATCH(req: Request) {
             }, {status: 400});
         }
 
-        const {errorResponse} = await getVerifiedUser(req);
+        const course = await CourseModel.findById(courseId);
+
+        if (!course) {
+            return Response.json({
+                success: false,
+                message: "Course not found",
+            }, {status: 404})
+        }
+
+        const {user, errorResponse} = await getVerifiedUser(req);
         if (errorResponse) return errorResponse;
+
+        if (course.Username.toString() !== user._id) {
+            return Response.json({
+                success: false,
+                message: "You are not authorized to update this course",
+            }, {status: 403});
+        }
 
         const bytes = await file.arrayBuffer();
         const buffer = Buffer.from(bytes);
@@ -235,7 +251,6 @@ export async function DELETE(req: Request) {
 
     try {
         const formData = await req.formData();
-
         const courseId = formData.get("Course_Id")?.toString();
 
         if (!courseId) {
@@ -270,6 +285,18 @@ export async function DELETE(req: Request) {
             user._id,
             {$pull: {Upload_Course: courseId}}
         );
+
+        await UserModel.updateMany(
+            {},
+            {
+                $pull: {
+                    Buy_Course: courseId,
+                    Cart: courseId
+                },
+            }
+        )
+
+        await CourseModel.findByIdAndDelete(courseId);
 
         return Response.json({
             success: true,

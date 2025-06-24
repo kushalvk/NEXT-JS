@@ -28,6 +28,11 @@ const UserSchema: Schema<User> = new Schema({
         unique: true,
         match: [/.+\@.+\..+/, 'Please use a valid email address']
     },
+    Full_name: {
+        type: String,
+        default: "",
+        trim: true,
+    },
     Cart: [{
         type: Schema.Types.ObjectId,
         ref: 'courses',

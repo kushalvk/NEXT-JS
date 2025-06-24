@@ -6,7 +6,7 @@ export async function POST(req: Request) {
     await dbConnect();
 
     try {
-        const {Username, Password, Email} = await req.json();
+        const {Username, Password, Email, Full_name} = await req.json();
 
         if (!Username || !Password || !Email) {
             return Response.json({
@@ -15,7 +15,7 @@ export async function POST(req: Request) {
             }, {status: 400, statusText: "Username, password and Email are required"});
         }
 
-        const checkUserNotExist = await UserModel.findOne({Username: Username});
+        const checkUserNotExist = await UserModel.findOne({Username});
 
         if (checkUserNotExist) {
             return Response.json({
@@ -38,6 +38,7 @@ export async function POST(req: Request) {
                 Username,
                 Password: hashedPassword,
                 Email,
+                Full_name,
             })
 
             await newUser.save();
