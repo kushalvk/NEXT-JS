@@ -4,6 +4,8 @@ import {writeFile} from "fs/promises";
 import cloudinary from "@/utils/cloudinary";
 import {getVerifiedUser} from "@/utils/verifyRequest";
 import UserModel from "@/models/User";
+import path from "path";
+import {unlink} from "fs/promises";
 
 export async function POST(req: Request) {
     await dbConnect();
@@ -23,15 +25,15 @@ export async function POST(req: Request) {
         const bytes = await file.arrayBuffer();
         const buffer = Buffer.from(bytes);
 
-        const fileName = `${Date.now()}-${file.name}`;
-        // const filePath = path.join(process.cwd(), "public/uploads/videos", fileName);
+        const tempFilePath = path.join(process.cwd(), "public/uploads/videos", `${Date.now()}-${file.name}`);
+        await writeFile(tempFilePath, buffer);
 
-        await writeFile(fileName, buffer);
-
-        const result = await cloudinary.uploader.upload(fileName, {
+        const result = await cloudinary.uploader.upload(tempFilePath, {
             resource_type: "video",
             folder: "courses",
         });
+
+        await unlink(tempFilePath);
 
         const Course_Name = formData.get("Course_Name")?.toString() || "";
         const Description = formData.get("Description")?.toString() || "";
@@ -92,7 +94,6 @@ export async function PUT(req: Request) {
 
     try {
         const formData = await req.formData();
-
         const courseId = formData.get("Course_Id")?.toString();
 
         if (!courseId) {
@@ -105,28 +106,9 @@ export async function PUT(req: Request) {
         const Course_Name = formData.get("Course_Name")?.toString() || "";
         const Description = formData.get("Description")?.toString() || "";
         const Department = formData.get("Department")?.toString() || "";
-        const Video_Description = formData.get("Video_Description")?.toString() || "";
 
         const {user, errorResponse} = await getVerifiedUser(req);
         if (errorResponse) return errorResponse;
-
-        const file = formData.get("Video") as File | null;
-        let videoUrl = "";
-
-        if (file && file.name) {
-            const bytes = await file.arrayBuffer();
-            const buffer = Buffer.from(bytes);
-            const fileName = `${Date.now()}-${file.name}`;
-
-            await writeFile(fileName, buffer);
-
-            const result = await cloudinary.uploader.upload(fileName, {
-                resource_type: "video",
-                folder: "courses",
-            })
-
-            videoUrl = result.secure_url;
-        }
 
         const update: any = {
             Course_Name,
@@ -134,13 +116,6 @@ export async function PUT(req: Request) {
             Department,
             Username: user._id,
         };
-
-        if (videoUrl) {
-            update.Video = {
-                Video_Url: videoUrl,
-                Description: Video_Description,
-            };
-        }
 
         const updatedCourse = await CourseModel.findByIdAndUpdate(courseId, update, {
             new: true,
@@ -205,13 +180,15 @@ export async function PATCH(req: Request) {
 
         const bytes = await file.arrayBuffer();
         const buffer = Buffer.from(bytes);
-        const fileName = `${Date.now()}-${file.name}`;
-        await writeFile(fileName, buffer);
+        const tempFilePath = path.join(process.cwd(), "public/uploads/videos", `${Date.now()}-${file.name}`);
+        await writeFile(tempFilePath, buffer);
 
-        const result = await cloudinary.uploader.upload(fileName, {
+        const result = await cloudinary.uploader.upload(tempFilePath, {
             resource_type: "video",
             folder: "courses",
         });
+
+        await unlink(tempFilePath);
 
         const videoData = {
             Video_Url: result.secure_url,
@@ -223,13 +200,6 @@ export async function PATCH(req: Request) {
             {$push: {Video: videoData}},
             {new: true}
         );
-
-        if (!updated) {
-            return Response.json({
-                success: false,
-                message: "Course not found",
-            }, {status: 404});
-        }
 
         return Response.json({
             success: true,
