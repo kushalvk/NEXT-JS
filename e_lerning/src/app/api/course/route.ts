@@ -279,8 +279,6 @@ export async function DELETE(req: Request) {
             }, {status: 403});
         }
 
-        await CourseModel.findByIdAndDelete(courseId);
-
         await UserModel.findByIdAndUpdate(
             user._id,
             {$pull: {Upload_Course: courseId}}
