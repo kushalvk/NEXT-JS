@@ -281,7 +281,11 @@ export async function DELETE(req: Request) {
 
         await UserModel.findByIdAndUpdate(
             user._id,
-            {$pull: {Upload_Course: courseId}}
+            {
+                $pull: {
+                    Upload_Course: courseId
+                }
+            }
         );
 
         await UserModel.updateMany(
