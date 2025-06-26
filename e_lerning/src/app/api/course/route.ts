@@ -39,6 +39,7 @@ export async function POST(req: Request) {
         const Description = formData.get("Description")?.toString() || "";
         const Department = formData.get("Department")?.toString() || "";
         const Video_Description = formData.get("Video_Description")?.toString() || "";
+        const Price = formData.get("Price")?.toString() || "";
 
         if (!(Course_Name && Description && Department)) {
             return Response.json({
@@ -54,6 +55,7 @@ export async function POST(req: Request) {
             Course_Name,
             Description,
             Department,
+            Price,
             Username: user._id,
             Video: {
                 Video_Url: result.secure_url,
@@ -106,14 +108,16 @@ export async function PUT(req: Request) {
         const Course_Name = formData.get("Course_Name")?.toString() || "";
         const Description = formData.get("Description")?.toString() || "";
         const Department = formData.get("Department")?.toString() || "";
+        const Price = formData.get("Price")?.toString() || "";
 
         const {user, errorResponse} = await getVerifiedUser(req);
         if (errorResponse) return errorResponse;
 
-        const update: any = {
+        const update = {
             Course_Name,
             Description,
             Department,
+            Price,
             Username: user._id,
         };
 
@@ -262,7 +266,9 @@ export async function DELETE(req: Request) {
             {},
             {
                 $pull: {
-                    Buy_Course: courseId,
+                    Buy_Course: {
+                        courseId: courseId,
+                    },
                     Cart: courseId
                 },
             }
@@ -279,33 +285,6 @@ export async function DELETE(req: Request) {
         return Response.json({
             success: false,
             message: "Error at deleting Course",
-        }, {status: 500});
-    }
-}
-
-export async function GET() {
-    await dbConnect();
-
-    try {
-        const course = await CourseModel.find({});
-
-        if (!course) {
-            return Response.json({
-                success: false,
-                message: "Course not found",
-            }, {status: 404});
-        }
-
-        return Response.json({
-            success: true,
-            message: "All Course found",
-            course
-        }, {status: 200});
-    } catch (error) {
-        console.error("Error at getting Course", error);
-        return Response.json({
-            success: false,
-            message: "Error at getting Course",
         }, {status: 500});
     }
 }

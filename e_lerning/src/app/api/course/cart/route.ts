@@ -108,10 +108,10 @@ export async function DELETE(req: Request) {
             User: upadtedUser
         }, {status: 200});
     } catch (error) {
-        console.error("Error at delete user", error);
+        console.error("Error at remove course from cart ", error);
         return Response.json({
             success: false,
-            message: "Error at delete user",
+            message: "Error at remove course from cart",
         }, {status: 500});
     }
 }

@@ -17,7 +17,7 @@ export async function PUT(req: Request) {
             }, {status: 400});
         }
 
-        const course = await CourseModel.findOne({_id: courseId});
+        const course = await CourseModel.findById(courseId);
 
         if (!course) {
             return Response.json({
@@ -29,7 +29,7 @@ export async function PUT(req: Request) {
         const {user, errorResponse} = await getVerifiedUser(req);
         if (errorResponse) return errorResponse;
 
-        if (user?.Buy_Course?.includes(courseId)) {
+        if (user?.Buy_Course?.some(item => item.courseId.toString() === courseId)) {
             return Response.json({
                 success: false,
                 message: "You have already bought this course.",
@@ -37,12 +37,19 @@ export async function PUT(req: Request) {
         }
 
         const updatedUser = await UserModel.findOneAndUpdate(
-            { _id: user._id },
+            {_id: user._id},
             {
-                $push: { Buy_Course: courseId },
-                $pull: { Cart: courseId }
+                $push: {
+                    Buy_Course: {
+                        courseId: courseId,
+                        buyDate: new Date(),
+                    },
+                },
+                $pull: {
+                    Cart: courseId,
+                },
             },
-            { new: true }
+            {new: true}
         );
 
         return Response.json({
@@ -85,7 +92,7 @@ export async function DELETE(req: Request) {
         const {user, errorResponse} = await getVerifiedUser(req);
         if (errorResponse) return errorResponse;
 
-        if (!user?.Buy_Course?.includes(courseId)) {
+        if (!user?.Buy_Course?.some(item => item.courseId.toString() === courseId)) {
             return Response.json({
                 success: false,
                 message: "You haven't bought this course.",
@@ -94,9 +101,15 @@ export async function DELETE(req: Request) {
 
         const updatedUser = await UserModel.findOneAndUpdate(
             {_id: user._id},
-            {$pull: {Buy_Course: courseId}},
+            {
+                $pull: {
+                    Buy_Course: {
+                        courseId: courseId
+                    }
+                }
+            },
             {new: true}
-        )
+        );
 
         return Response.json({
             success: true,
@@ -104,10 +117,10 @@ export async function DELETE(req: Request) {
             User: updatedUser,
         }, {status: 200});
     } catch (error) {
-        console.error("Error at deleting course from user ", error);
+        console.error("Error at deleting course from users ", error);
         return Response.json({
             success: false,
-            message: "Error at deleting course from user ",
+            message: "Error at deleting course from users ",
         }, {status: 500});
     }
 }

@@ -21,6 +21,7 @@ export interface Course extends Document {
     Course_Name: string;
     Description: string;
     Department: string;
+    Price: number;
     Username: Types.ObjectId;
     Video: Video[];
 }
@@ -40,6 +41,10 @@ const CourseSchema: Schema<Course> = new Schema({
         type: String,
         required: [true, 'Department is required'],
         trim: true,
+    },
+    Price: {
+        type: Number,
+        default: 0,
     },
     Username: [{
         type: Types.ObjectId,
