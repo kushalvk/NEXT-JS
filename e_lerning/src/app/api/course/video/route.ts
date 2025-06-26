@@ -11,18 +11,18 @@ export async function PUT(req: Request) {
     try {
         const formData = await req.formData();
 
-        const videoId = formData.get('videoId')?.toString() || "";
+        const courseId = formData.get('courseId')?.toString() || "";
         const Video_Description = formData.get("Video_Description")?.toString() || "";
         const file = formData.get("Video") as File;
 
-        if (!videoId) {
+        if (!courseId) {
             return Response.json({
                 success: false,
-                message: "Video Id is required",
+                message: "Course Id is required",
             }, {status: 400});
         }
 
-        const course = await CourseModel.findOne({"Video._id": videoId});
+        const course = await CourseModel.findOne({_id: courseId});
 
         if (!course) {
             return Response.json({
@@ -54,11 +54,13 @@ export async function PUT(req: Request) {
         await unlink(tempFilePath);
 
         const updatedCourse = await CourseModel.findOneAndUpdate(
-            {"Video._id": videoId},
+            {_id: courseId},
             {
-                $set: {
-                    "Video.$.Video_Url": result.secure_url,
-                    "Video.$.Description": Video_Description,
+                $push: {
+                    Video: {
+                        Video_Url: result.secure_url,
+                        Description: Video_Description,
+                    },
                 },
             },
             {new: true}

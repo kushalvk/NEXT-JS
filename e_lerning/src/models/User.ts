@@ -15,7 +15,46 @@ const Buy_Course_Schema = new Schema<BuyCourse>({
         type: Date,
         default: Date.now,
     },
-});
+}, {_id: false});
+
+export interface WatchedCourse extends Document {
+    courseId: mongoose.Types.ObjectId;
+    completedVideos: mongoose.Types.ObjectId[];
+    completedAt?: Date | null;
+}
+
+const Watched_Course_Schema = new Schema<WatchedCourse>({
+    courseId: {
+        type: Schema.Types.ObjectId,
+        ref: "courses",
+        required: true,
+    },
+    completedVideos: [{
+        type: Schema.Types.ObjectId,
+        required: true,
+    }],
+    completedAt: {
+        type: Date,
+        default: null,
+    }
+}, {_id: false})
+
+export interface Certifiate extends Document {
+    courseId: mongoose.Types.ObjectId;
+    issuedAt: Date;
+}
+
+const Certificate_Schema = new Schema<Certifiate>({
+    courseId: {
+        type: Schema.Types.ObjectId,
+        ref: "courses",
+        required: true,
+    },
+    issuedAt: {
+        type: Date,
+        default: Date.now,
+    }
+}, {_id: false});
 
 export interface User extends Document {
     Username: string;
@@ -25,6 +64,8 @@ export interface User extends Document {
     Cart: Types.ObjectId[];
     Upload_Course: Types.ObjectId[];
     Buy_Course: BuyCourse[];
+    Watched_Course: WatchedCourse[];
+    Certificate: Certifiate[];
 }
 
 const UserSchema: Schema<User> = new Schema({
@@ -60,7 +101,9 @@ const UserSchema: Schema<User> = new Schema({
         ref: 'courses',
         default: [],
     }],
-    Buy_Course: [Buy_Course_Schema]
+    Buy_Course: [Buy_Course_Schema],
+    Watched_Course: [Watched_Course_Schema],
+    Certificate: [Certificate_Schema],
 })
 
 const UserModel = mongoose.models.users || mongoose.model<User>('users', UserSchema);
