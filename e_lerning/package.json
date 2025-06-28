@@ -19,6 +19,7 @@
     "mongoose": "^8.13.0",
     "multer": "^2.0.1",
     "next": "15.2.4",
+    "node-mocks-http": "^1.17.2",
     "path": "^0.12.7",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
@@ -41,6 +42,8 @@
     "jest-environment-jsdom": "^30.0.2",
     "tailwindcss": "^4",
     "ts-node": "^10.9.2",
-    "typescript": "^5"
+    "typescript": "^5",
+    "undici": "^7.11.0",
+    "whatwg-fetch": "^3.6.20"
   }
 }
