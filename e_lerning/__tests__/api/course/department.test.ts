@@ -28,9 +28,7 @@ describe("GET /api/course/[department]", () => {
     it('should return 404 if course not find with this department', async () => {
         (CourseModel.findOne as jest.Mock).mockResolvedValue([]);
 
-        const departmentParam = 'IT';
-
-        const response = await GET({} as any, {params: {department: departmentParam}});
+        const response = await GET({} as any, {params: {department: 'IT'}});
 
         const body = await response.json();
         expect(response.status).toBe(404);

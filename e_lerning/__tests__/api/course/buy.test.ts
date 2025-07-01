@@ -28,14 +28,6 @@ describe("PUT /api/course/buy", () => {
         jest.spyOn(console, "error").mockImplementation(() => {});
     });
 
-    afterAll(() => {
-        jest.restoreAllMocks();
-    });
-
-    beforeEach(() => {
-        jest.clearAllMocks();
-    });
-
     it("should return 400 if courseId is missing", async () => {
         const req = mockFormDataWithCourseId(null);
         const response = await PUT(req);

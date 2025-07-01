@@ -134,7 +134,7 @@ export async function GET(req: Request) {
             return Response.json({
                 success: true,
                 message: "Your cart is empty",
-            }, {status: 200});
+            }, {status: 400});
         }
 
         const Cart = await CourseModel.find({_id: user.Cart});
