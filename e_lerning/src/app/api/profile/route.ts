@@ -1,7 +1,7 @@
 import {NextRequest} from "next/server";
 import dbConnect from "@/app/lib/dbConnect";
 import {getVerifiedUser} from "@/utils/verifyRequest";
-import UserModel from "@/models/User"; // point to correct path
+import UserModel from "@/models/User";
 
 export async function GET(req: NextRequest) {
     await dbConnect();
