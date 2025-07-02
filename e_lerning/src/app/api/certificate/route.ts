@@ -20,7 +20,7 @@ export async function POST(req: Request) {
         const {user, errorResponse} = await getVerifiedUser(req);
         if (errorResponse) return errorResponse;
 
-        if (user.Buy_Course.toString() === courseId) {
+        if (!user.Buy_Course.some(id => id.toString() === courseId)) {
             return Response.json({
                 success: false,
                 message: "Your are not bought this course",
