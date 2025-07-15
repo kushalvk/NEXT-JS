@@ -1,15 +1,50 @@
 "use client"
 import React, {useState} from 'react';
 import Link from "next/link";
+import toast from "react-hot-toast";
+import {login} from "@/services/AuthService";
+import {useRouter} from "next/navigation";
+
+export interface LoginData {
+    Username: string;
+    Password: string;
+}
+
+export interface LoginResponse {
+    success: boolean;
+    message: string;
+    UserToken: string;
+}
 
 const Login: React.FC = () => {
-    const [username, setUsername] = useState('');
-    const [password, setPassword] = useState('');
+    const [Username, setUsername] = useState<string>('');
+    const [Password, setPassword] = useState<string>('');
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const router = useRouter();
+
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        // Handle login logic here
-        console.log('Username:', username, 'Password:', password);
+
+        const loadingToastId = toast.loading("Please wait while we finalize the details...");
+
+        const payload: LoginData = {Username, Password};
+
+        try {
+            const response: LoginResponse = await login(payload);
+
+            if (!response.success) {
+                toast.error(response.message);
+                toast.dismiss(loadingToastId);
+            } else {
+                toast.success(response.message);
+                router.push('/');
+                toast.dismiss(loadingToastId);
+                localStorage.setItem('token', response.UserToken);
+            }
+        } catch (error) {
+            toast.error('Something went wrong. Please try again.');
+            toast.dismiss(loadingToastId);
+        }
     };
 
     return (
@@ -28,30 +63,30 @@ const Login: React.FC = () => {
                     </h2>
                     <form onSubmit={handleSubmit} className="space-y-6">
                         <div>
-                            <label htmlFor="username" className="block text-indigo-600 font-semibold mb-2">
+                            <label htmlFor="Username" className="block text-indigo-600 font-semibold mb-2">
                                 Username
                             </label>
                             <input
                                 type="text"
-                                id="username"
-                                value={username}
+                                id="Username"
+                                value={Username}
                                 onChange={(e) => setUsername(e.target.value)}
                                 className="w-full p-4 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-700 placeholder-gray-400 transition-all duration-300"
-                                placeholder="Enter your username"
+                                placeholder="Enter your Username"
                                 required
                             />
                         </div>
                         <div>
-                            <label htmlFor="password" className="block text-indigo-600 font-semibold mb-2">
+                            <label htmlFor="Password" className="block text-indigo-600 font-semibold mb-2">
                                 Password
                             </label>
                             <input
-                                type="password"
-                                id="password"
-                                value={password}
+                                type="Password"
+                                id="Password"
+                                value={Password}
                                 onChange={(e) => setPassword(e.target.value)}
                                 className="w-full p-4 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-700 placeholder-gray-400 transition-all duration-300"
-                                placeholder="Enter your password"
+                                placeholder="Enter your Password"
                                 required
                             />
                         </div>
