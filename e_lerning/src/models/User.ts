@@ -61,6 +61,7 @@ export interface User extends Document {
     Password: string;
     Email: string;
     Full_name: string;
+    Favourite: Types.ObjectId[];
     Cart: Types.ObjectId[];
     Upload_Course: Types.ObjectId[];
     Buy_Course: BuyCourse[];
@@ -91,6 +92,11 @@ const UserSchema: Schema<User> = new Schema({
         default: "",
         trim: true,
     },
+    Favourite: [{
+        type: Schema.Types.ObjectId,
+        ref: 'courses',
+        default: [],
+    }],
     Cart: [{
         type: Schema.Types.ObjectId,
         ref: 'courses',

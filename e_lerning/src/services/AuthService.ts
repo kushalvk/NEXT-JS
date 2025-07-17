@@ -2,6 +2,7 @@ import axios from 'axios';
 import {SignupData} from "@/app/(auth)/signup/page";
 import CommonApiResponse from "@/utils/CommonApiResponse";
 import {LoginData, LoginResponse} from "@/app/(auth)/login/page";
+import Error from "./Error"
 
 export const signup = async (data: SignupData): Promise<CommonApiResponse> => {
     try {
@@ -19,9 +20,4 @@ export const login = async (data: LoginData): Promise<LoginResponse> => {
     } catch (error) {
         Error(error);
     }
-}
-
-const Error = (err: any) => {
-    const errorMessage = err.response?.data?.message || "Something went wrong";
-    return {success: false, message: errorMessage};
 }

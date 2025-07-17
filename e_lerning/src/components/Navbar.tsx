@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import React, { useState, useRef } from 'react';
+import React, {useState, useRef, useEffect} from 'react';
 import { CgProfile } from 'react-icons/cg';
 import { RiShoppingCartFill } from 'react-icons/ri';
 import { FaHeart } from 'react-icons/fa';
@@ -14,6 +14,15 @@ const Header: React.FC = () => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
     const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+    useEffect(() => {
+        const token = localStorage.getItem('token');
+        if (token)
+            setIsLoggedIn(true);
+        else
+            setIsLoggedIn(false);
+    }, []);
 
     const toggleMenu = () => {
         setIsMenuOpen(!isMenuOpen);
@@ -39,6 +48,11 @@ const Header: React.FC = () => {
             setIsProfileDropdownOpen(false);
         }, 300);
     };
+
+    const handleClickLogout = () => {
+        localStorage.removeItem('token');
+        location.reload();
+    }
 
     return (
         <header
@@ -81,81 +95,95 @@ const Header: React.FC = () => {
                 >
                     Search Courses
                 </Link>
-                <Link
-                    href="/mycourses"
-                    className="text-[#F5F5F5] hover:text-[#FF6B6B] transition-colors duration-300"
-                >
-                    My Courses
-                </Link>
-                <Button
-                    onClick={() => router.push('/login')}
-                    variant="outline"
-                    className="text-white w-full sm:w-auto text-sm sm:text-base py-2"
-                >
-                    Login
-                </Button>
-                <Button
-                    onClick={() => router.push('/signup')}
-                    variant="destructive"
-                    className="w-full sm:w-auto text-sm sm:text-base py-2"
-                >
-                    Sign Up
-                </Button>
-                <div className="flex gap-3 sm:gap-4">
-                    <Link
-                        href="/favorite"
-                        className="text-[#F5F5F5] hover:text-[#FF6B6B] transition-colors duration-300"
-                    >
-                        <FaHeart className="w-5 h-5 sm:w-6 sm:h-6" />
-                    </Link>
-                    <Link
-                        href="/cart"
-                        className="text-[#F5F5F5] hover:text-[#FF6B6B] transition-colors duration-300"
-                    >
-                        <RiShoppingCartFill className="w-5 h-5 sm:w-6 sm:h-6" />
-                    </Link>
-                    <div
-                        className="relative group"
-                        onMouseEnter={handleMouseEnter}
-                        onMouseLeave={handleMouseLeave}
-                    >
-                        <button
-                            onClick={toggleProfileDropdown}
+                {isLoggedIn ? (
+                    <>
+                        <Link
+                            href="/mycourses"
                             className="text-[#F5F5F5] hover:text-[#FF6B6B] transition-colors duration-300"
-                            aria-label="Profile menu"
                         >
-                            <CgProfile className="w-5 h-5 sm:w-6 sm:h-6" />
-                        </button>
-                        <div
-                            className={`${
-                                isMenuOpen || isProfileDropdownOpen ? 'flex' : 'hidden'
-                            } sm:group-hover:flex flex-col absolute right-0 sm:right-0 top-8 sm:top-10 w-40 bg-black/90 backdrop-blur-md rounded-lg shadow-lg p-2 z-50 sm:bg-black/50 sm:backdrop-blur-md`}
-                            onMouseEnter={handleMouseEnter}
-                            onMouseLeave={handleMouseLeave}
+                            My Courses
+                        </Link>
+                        <Button
+                            onClick={handleClickLogout}
+                            variant="destructive"
+                            className="w-full sm:w-auto text-sm sm:text-base py-2"
                         >
+                            Logout
+                        </Button>
+                        <div className="flex gap-3 sm:gap-4">
                             <Link
-                                href="/uploadCourse"
-                                className="text-[#F5F5F5] hover:text-[#FF6B6B] px-4 py-2 rounded-lg transition-colors duration-300 text-sm"
-                                onClick={() => {
-                                    setIsProfileDropdownOpen(false);
-                                    setIsMenuOpen(false);
-                                }}
+                                href="/favorite"
+                                className="text-[#F5F5F5] hover:text-[#FF6B6B] transition-colors duration-300"
                             >
-                                Upload Course
+                                <FaHeart className="w-5 h-5 sm:w-6 sm:h-6"/>
                             </Link>
                             <Link
-                                href="/profile"
-                                className="text-[#F5F5F5] hover:text-[#FF6B6B] px-4 py-2 rounded-lg transition-colors duration-300 text-sm"
-                                onClick={() => {
-                                    setIsProfileDropdownOpen(false);
-                                    setIsMenuOpen(false);
-                                }}
+                                href="/cart"
+                                className="text-[#F5F5F5] hover:text-[#FF6B6B] transition-colors duration-300"
                             >
-                                Profile
+                                <RiShoppingCartFill className="w-5 h-5 sm:w-6 sm:h-6"/>
                             </Link>
+                            <div
+                                className="relative group"
+                                onMouseEnter={handleMouseEnter}
+                                onMouseLeave={handleMouseLeave}
+                            >
+                                <button
+                                    onClick={toggleProfileDropdown}
+                                    className="text-[#F5F5F5] hover:text-[#FF6B6B] transition-colors duration-300"
+                                    aria-label="Profile menu"
+                                >
+                                    <CgProfile className="w-5 h-5 sm:w-6 sm:h-6"/>
+                                </button>
+                                <div
+                                    className={`${
+                                        isMenuOpen || isProfileDropdownOpen ? 'flex' : 'hidden'
+                                    } sm:group-hover:flex flex-col absolute right-0 sm:right-0 top-8 sm:top-10 w-40 bg-black/90 backdrop-blur-md rounded-lg shadow-lg p-2 z-50 sm:bg-black/50 sm:backdrop-blur-md`}
+                                    onMouseEnter={handleMouseEnter}
+                                    onMouseLeave={handleMouseLeave}
+                                >
+                                    <Link
+                                        href="/uploadCourse"
+                                        className="text-[#F5F5F5] hover:text-[#FF6B6B] px-4 py-2 rounded-lg transition-colors duration-300 text-sm"
+                                        onClick={() => {
+                                            setIsProfileDropdownOpen(false);
+                                            setIsMenuOpen(false);
+                                        }}
+                                    >
+                                        Upload Course
+                                    </Link>
+                                    <Link
+                                        href="/profile"
+                                        className="text-[#F5F5F5] hover:text-[#FF6B6B] px-4 py-2 rounded-lg transition-colors duration-300 text-sm"
+                                        onClick={() => {
+                                            setIsProfileDropdownOpen(false);
+                                            setIsMenuOpen(false);
+                                        }}
+                                    >
+                                        Profile
+                                    </Link>
+                                </div>
+                            </div>
                         </div>
-                    </div>
-                </div>
+                    </>
+                ) : (
+                    <>
+                        <Button
+                            onClick={() => router.push('/login')}
+                            variant="outline"
+                            className="text-white w-full sm:w-auto text-sm sm:text-base py-2"
+                        >
+                            Login
+                        </Button>
+                        <Button
+                            onClick={() => router.push('/signup')}
+                            variant="destructive"
+                            className="w-full sm:w-auto text-sm sm:text-base py-2"
+                        >
+                            Sign Up
+                        </Button>
+                    </>
+                )}
             </nav>
         </header>
     );

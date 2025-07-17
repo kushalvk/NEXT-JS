@@ -40,6 +40,9 @@ const Login: React.FC = () => {
                 router.push('/');
                 toast.dismiss(loadingToastId);
                 localStorage.setItem('token', response.UserToken);
+                setTimeout(() => {
+                    location.reload();
+                }, 500);
             }
         } catch (error) {
             toast.error('Something went wrong. Please try again.');

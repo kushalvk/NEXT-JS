@@ -18,6 +18,7 @@ const VideoSchema: Schema<Video> = new Schema({
 })
 
 export interface Course extends Document {
+    Image: string;
     Course_Name: string;
     Description: string;
     Department: string;
@@ -27,6 +28,10 @@ export interface Course extends Document {
 }
 
 const CourseSchema: Schema<Course> = new Schema({
+    Image: {
+        type: String,
+        trim: true,
+    },
     Course_Name: {
         type: String,
         required: [true, 'Course Name is required'],

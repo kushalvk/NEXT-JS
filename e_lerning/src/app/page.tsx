@@ -1,12 +1,21 @@
 'use client';
 
-import React from 'react';
+import React, {useEffect, useState} from 'react';
 import Link from 'next/link';
 import {Button} from "@/components/ui/button";
 import {useRouter} from "next/navigation";
 
 const Home: React.FC = () => {
     const router = useRouter();
+    const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+    useEffect(() => {
+        const token = localStorage.getItem('token');
+        if (token)
+            setIsLoggedIn(true);
+        else
+            setIsLoggedIn(false);
+    }, []);
 
     return (
         <div className="min-h-screen w-full flex flex-col bg-blue-900 items-stretch p-4 font-sans relative overflow-x-hidden">
@@ -25,17 +34,19 @@ const Home: React.FC = () => {
                         <div className="flex flex-col sm:flex-row justify-center lg:justify-start gap-4 mb-6">
                             <Button
                                 variant={"outline"}
-                                onClick={() => router.push('/signup')}
+                                onClick={() => router.push('/courses')}
                                 className="text-white px-6 py-3 rounded-xl duration-300 font-semibold sm:text-lg"
                             >
                                 Start Learning Now
                             </Button>
-                            <Link
-                                href="/login"
-                                className="text-white hover:text-gray-400 font-medium hover:underline transition-colors duration-300 text-base sm:text-lg mt-2 text-center"
-                            >
-                                Already a Member? Log In
-                            </Link>
+                            {!isLoggedIn ? (
+                                <Link
+                                    href="/login"
+                                    className="text-white hover:text-gray-400 font-medium hover:underline transition-colors duration-300 text-base sm:text-lg mt-2 text-center"
+                                >
+                                    Already a Member? Log In
+                                </Link>
+                            ) : null }
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div className="bg-[#F5F5F5] p-4 rounded-xl shadow-lg hover:shadow-xl transition">
@@ -65,24 +76,6 @@ const Home: React.FC = () => {
                             className="max-w-lg object-cover rounded-lg shadow-xl"
                         />
                         <div className="ml-7 absolute inset-0 rounded-lg bg-gradient-to-r from-black/70 to-transparent pointer-events-none"></div>
-                    </div>
-                </div>
-
-                {/* Featured Courses */}
-                <div className="w-full max-w-6xl mb-16 px-2 sm:px-4">
-                    <h2 className="text-2xl sm:text-3xl font-bold text-gray-200 mb-6">Featured Courses</h2>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {['React Basics', 'Data Science', 'UI/UX Design'].map((course, i) => (
-                            <div key={i} className="bg-white rounded-xl p-4 shadow-lg hover:shadow-xl transition transform hover:-translate-y-1">
-                                <h3 className="text-lg font-semibold text-gray-700 mb-2">{course}</h3>
-                                <p className="text-sm text-[#1E3A8A] mb-3">
-                                    Kickstart your journey with this hands-on beginner-friendly course.
-                                </p>
-                                <Button variant={"destructive"} className="rounded-lg duration-300">
-                                    Enroll Now
-                                </Button>
-                            </div>
-                        ))}
                     </div>
                 </div>
 

@@ -1,22 +1,23 @@
-import '@testing-library/jest-dom'
-import { render, screen } from '@testing-library/react'
-import Page from '@/app/page'
+/**
+ * @jest-environment jsdom
+ */
+import '@testing-library/jest-dom';
+import { render, screen } from '@testing-library/react';
+import Page from '@/app/page';
+
+jest.mock('next/navigation', () => ({
+    useRouter: () => ({
+        push: jest.fn(),
+    }),
+}));
 
 describe('Page', () => {
-    // it('renders a heading', () => {
-    //     render(<Page />)
-    //
-    //     const heading = screen.getByRole('heading', { level: 1 })
-    //
-    //     expect(heading).toBeInTheDocument()
-    // })
-
     it('renders the Start Learning Now link with correct href', () => {
         render(<Page />);
 
-        const deployLink = screen.getByRole('link', { name: /Start Learning Now/i });
+        const loginLink = screen.getByRole('link', { name: /Already a Member\? Log In/i });
 
-        expect(deployLink).toBeInTheDocument();
-        expect(deployLink).toHaveAttribute('href', expect.stringContaining('/signup'));
+        expect(loginLink).toBeInTheDocument();
+        expect(loginLink).toHaveAttribute('href', expect.stringContaining('/login'));
     });
-})
+});

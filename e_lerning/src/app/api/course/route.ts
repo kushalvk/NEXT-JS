@@ -13,27 +13,41 @@ export async function POST(req: Request) {
     try {
         const formData = await req.formData();
 
-        const file = formData.get("Video") as File;
+        const video = formData.get("Video") as File;
+        const image = formData.get("Image") as File;
 
-        if (!file) {
+        if (!video && !image) {
             return Response.json({
                 success: false,
-                message: "No video uploaded",
+                message: "video & Image are required",
             }, {status: 400});
         }
 
-        const bytes = await file.arrayBuffer();
-        const buffer = Buffer.from(bytes);
+        const bytesVideo = await video.arrayBuffer();
+        const bufferVideo = Buffer.from(bytesVideo);
 
-        const tempFilePath = path.join(process.cwd(), "public/uploads/videos", `${Date.now()}-${file.name}`);
-        await writeFile(tempFilePath, buffer);
+        const tempFilePathVideo = path.join(process.cwd(), "public/uploads/videos", `${Date.now()}-${video.name}`);
+        await writeFile(tempFilePathVideo, bufferVideo);
 
-        const result = await cloudinary.uploader.upload(tempFilePath, {
+        const resultVideo = await cloudinary.uploader.upload(tempFilePathVideo, {
             resource_type: "video",
             folder: "courses",
         });
 
-        await unlink(tempFilePath);
+        await unlink(tempFilePathVideo);
+
+        const bytesImage = await image.arrayBuffer();
+        const bufferImage = Buffer.from(bytesImage);
+
+        const tempFilePathImage = path.join(process.cwd(), "public/uploads/image", `${Date.now()}-${image.name}`);
+        await writeFile(tempFilePathImage, bufferImage);
+
+        const resultImage = await cloudinary.uploader.upload(tempFilePathImage, {
+            resource_type: "image",
+            folder: "courses",
+        });
+
+        await unlink(tempFilePathImage);
 
         const Course_Name = formData.get("Course_Name")?.toString() || "";
         const Description = formData.get("Description")?.toString() || "";
@@ -52,13 +66,14 @@ export async function POST(req: Request) {
         if (errorResponse) return errorResponse;
 
         const newCourse = new CourseModel({
+            Image: resultImage.secure_url,
             Course_Name,
             Description,
             Department,
             Price,
             Username: user._id,
             Video: {
-                Video_Url: result.secure_url,
+                Video_Url: resultVideo.secure_url,
                 Description: Video_Description
             },
         });

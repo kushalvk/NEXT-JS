@@ -35,43 +35,51 @@ function mockFormData(fields: Partial<Record<string, any>>) {
 }
 
 describe("POST /api/course", () => {
+    const userId = "mockUserId";
+    const mockCourseId = "mockCourseId";
+
     beforeEach(() => {
         jest.clearAllMocks();
     });
 
-    it("should return 400 if video is missing", async () => {
-        const req = {
-            formData: async () => ({
-                get: (key: string) => {
-                    if (key === "Course_Name") return "React";
-                    if (key === "Description") return "Learn React";
-                    if (key === "Department") return "CS";
-                    return null;
-                },
-            }),
-        } as unknown as Request;
-
-        const res = await POST(req as any);
-        const body = await res.json();
-
-        expect(res.status).toBe(400);
-        expect(body.message).toMatch(/No video uploaded/i);
-    });
-
-    it("should return 400 if required fields are missing", async () => {
-        const req = {
+    const mockFormData = (fields: Record<string, any>) => {
+        return {
             formData: async () => ({
                 get: (key: string) => {
                     if (key === "Video") {
                         return {
                             arrayBuffer: jest.fn().mockResolvedValue(new ArrayBuffer(10)),
-                            name: "mock.mp4",
+                            name: "video.mp4",
                         };
                     }
-                    return null;
+                    if (key === "Image") {
+                        return {
+                            arrayBuffer: jest.fn().mockResolvedValue(new ArrayBuffer(10)),
+                            name: "image.png",
+                        };
+                    }
+                    return fields[key] ?? null;
                 },
             }),
         } as unknown as Request;
+    };
+
+    it("should return 400 if video and image are missing", async () => {
+        const req = {
+            formData: async () => ({
+                get: () => null,
+            }),
+        } as unknown as Request;
+
+        const res = await POST(req);
+        const body = await res.json();
+
+        expect(res.status).toBe(400);
+        expect(body.message).toMatch(/video & image are required/i);
+    });
+
+    it("should return 400 if required text fields are missing", async () => {
+        const req = mockFormData({});
 
         const res = await POST(req);
         const body = await res.json();
@@ -82,15 +90,20 @@ describe("POST /api/course", () => {
 
     it("should return 400 if user document update fails", async () => {
         (getVerifiedUser as jest.Mock).mockResolvedValue({
-            user: {_id: userId},
+            user: { _id: userId },
             errorResponse: null,
         });
 
         (cloudinary.uploader.upload as jest.Mock).mockResolvedValue({
-            secure_url: "https://mocked-cloudinary.com/video.mp4",
+            secure_url: "https://mocked-cloudinary.com/resource",
         });
 
         (UserModel.findOneAndUpdate as jest.Mock).mockResolvedValue(null);
+
+        (CourseModel as any).mockImplementation(() => ({
+            save: jest.fn(),
+            _id: mockCourseId,
+        }));
 
         const req = mockFormData({
             Course_Name: "React",
@@ -99,11 +112,6 @@ describe("POST /api/course", () => {
             Video_Description: "Intro video",
             Price: "100",
         });
-
-        (CourseModel as any).mockImplementation(() => ({
-            save: jest.fn(),
-            _id: mockCourseId,
-        }));
 
         const res = await POST(req);
         const body = await res.json();
@@ -114,12 +122,12 @@ describe("POST /api/course", () => {
 
     it("should return 200 if course is created successfully", async () => {
         (getVerifiedUser as jest.Mock).mockResolvedValue({
-            user: {_id: userId},
+            user: { _id: userId },
             errorResponse: null,
         });
 
         (cloudinary.uploader.upload as jest.Mock).mockResolvedValue({
-            secure_url: "https://mocked-cloudinary.com/video.mp4",
+            secure_url: "https://mocked-cloudinary.com/resource",
         });
 
         (CourseModel as any).mockImplementation(() => ({
@@ -148,6 +156,7 @@ describe("POST /api/course", () => {
         expect(body.message).toMatch(/course added successfully/i);
     });
 });
+
 
 describe("PUT /api/course", () => {
     beforeEach(() => {
