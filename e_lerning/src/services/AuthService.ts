@@ -1,8 +1,14 @@
 import axios from 'axios';
 import {SignupData} from "@/app/(auth)/signup/page";
-import CommonApiResponse from "@/utils/CommonApiResponse";
-import {LoginData, LoginResponse} from "@/app/(auth)/login/page";
+import {CommonApiResponse, LoginData, LoginResponse} from "@/utils/Responses";
 import Error from "./Error"
+import {User} from "@/models/User";
+
+export interface loggedUserResponse {
+    success: boolean;
+    message: string;
+    User: User
+}
 
 export const signup = async (data: SignupData): Promise<CommonApiResponse> => {
     try {
@@ -13,9 +19,25 @@ export const signup = async (data: SignupData): Promise<CommonApiResponse> => {
     }
 }
 
-export const login = async (data: LoginData): Promise<LoginResponse> => {
+export const loginService = async (data: LoginData): Promise<LoginResponse> => {
     try {
         const response = await axios.post<LoginResponse>('/api/sign-in', data);
+        return response.data;
+    } catch (error) {
+        Error(error);
+    }
+}
+
+export const loggedUser = async () => {
+    try {
+        const token = localStorage.getItem('token');
+
+        const response = await axios.get<loggedUserResponse>('/api/loggedUser', {
+            headers: {
+                authorization: `${token}`
+            }
+        });
+
         return response.data;
     } catch (error) {
         Error(error);

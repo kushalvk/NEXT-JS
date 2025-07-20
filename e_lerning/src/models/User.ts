@@ -110,7 +110,7 @@ const UserSchema: Schema<User> = new Schema({
     Buy_Course: [Buy_Course_Schema],
     Watched_Course: [Watched_Course_Schema],
     Certificate: [Certificate_Schema],
-})
+}, { timestamps: true });
 
 const UserModel = mongoose.models.users || mongoose.model<User>('users', UserSchema);
 

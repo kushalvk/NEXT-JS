@@ -51,14 +51,14 @@ const CourseSchema: Schema<Course> = new Schema({
         type: Number,
         default: 0,
     },
-    Username: [{
+    Username: {
         type: Types.ObjectId,
         required: [true, 'Username is required'],
         ref: 'users',
         trim: true,
-    }],
+    },
     Video: [VideoSchema],
-})
+}, { timestamps: true });
 
 const CourseModel = mongoose.models.courses || mongoose.model<Course>('courses', CourseSchema);
 

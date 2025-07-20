@@ -1,77 +1,91 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, {useEffect, useState} from 'react';
 import Link from 'next/link';
-import { Button } from '@/components/ui/button';
-import { FiSearch } from 'react-icons/fi';
+import {Button} from '@/components/ui/button';
+import {FiSearch} from 'react-icons/fi';
 import {FaHeart} from "react-icons/fa";
+import {getAllCourses} from "@/services/CourseService";
+import {loggedUser, loggedUserResponse} from "@/services/AuthService";
+import {addToFavouriteService, removeFromFavouriteService} from "@/services/FavouriteService";
+import {CourseCard, CourseResponse} from "@/utils/Responses";
+import {User} from "@/models/User";
+import toast from "react-hot-toast";
+import {useRouter} from "next/navigation";
+import Loader from "@/components/Loader";
 
 const SearchCoursesPage: React.FC = () => {
     const [searchQuery, setSearchQuery] = useState('');
-    const [likedCourses, setLikedCourses] = useState<number[]>([]);
+    const [likedCourses, setLikedCourses] = useState<string[]>([]);
+    const [courses, setCourses] = useState<CourseCard[]>([]);
+    const [userData, setUserData] = useState<User>();
+    const [isLoading, setIsLoading] = useState<boolean>(true);
+    const router = useRouter();
 
-    const courses = [
-        {
-            id: 1,
-            title: 'React Basics',
-            category: 'Development',
-            description: 'Learn the fundamentals of React to build dynamic web applications.',
-            price: '$49.99',
-            image: 'https://www.shutterstock.com/image-vector/default-ui-image-placeholder-wireframes-600nw-1037719192.jpg',
-        },
-        {
-            id: 2,
-            title: 'Data Science with Python',
-            category: 'Data Science',
-            description: 'Master data analysis and machine learning with Python.',
-            price: '$79.99',
-            image: 'https://www.shutterstock.com/image-vector/default-ui-image-placeholder-wireframes-600nw-1037719192.jpg',
-        },
-        {
-            id: 3,
-            title: 'UI/UX Design Essentials',
-            category: 'Design',
-            description: 'Create user-friendly interfaces with modern design principles.',
-            price: '$59.99',
-            image: 'https://www.shutterstock.com/image-vector/default-ui-image-placeholder-wireframes-600nw-1037719192.jpg',
-        },
-        {
-            id: 4,
-            title: 'Digital Marketing 101',
-            category: 'Marketing',
-            description: 'Boost your marketing skills with SEO and social media strategies.',
-            price: '$39.99',
-            image: 'https://images.unsplash.com/photo-1557838923-2985c318be48?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=60',
-        },
-        {
-            id: 5,
-            title: 'Cloud Computing with AWS',
-            category: 'IT & Software',
-            description: 'Explore cloud infrastructure with Amazon Web Services.',
-            price: '$69.99',
-            image: 'https://images.unsplash.com/photo-1618424181497-157f25b6ddd5?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=60',
-        },
-        {
-            id: 6,
-            title: 'Leadership Skills',
-            category: 'Personal Development',
-            description: 'Develop leadership qualities to inspire and manage teams.',
-            price: '$29.99',
-            image: 'https://www.shutterstock.com/image-vector/default-ui-image-placeholder-wireframes-600nw-1037719192.jpg',
-        },
-    ];
+    useEffect(() => {
+        const courseData = async () => {
+            try {
+                const response: CourseResponse = await getAllCourses();
 
-    const toggleLike = (courseId: number) => {
-        setLikedCourses((prev) =>
-            prev.includes(courseId) ? prev.filter((id) => id !== courseId) : [...prev, courseId]
-        );
-        // In a real app, sync with backend or favorites page here
+                if (!response.success) {
+                    console.error(response.message);
+                } else {
+                    setCourses(response.course);
+                }
+            } catch (error) {
+                console.error(error.message);
+            } finally {
+                setIsLoading(false);
+            }
+        }
+        const userdata = async () => {
+            try {
+                const response: loggedUserResponse = await loggedUser();
+
+                if (response.success) {
+                    setUserData(response.User);
+                    const favIds = response.User.Favourite.map((fav: any) => fav.toString()); // convert ObjectId to string
+                    setLikedCourses(favIds);
+                }
+            } catch (error) {
+                console.error(error.message);
+            }
+        }
+        userdata();
+        courseData();
+    }, []);
+
+    const toggleLike = async (courseId: string) => {
+
+        if (!userData) {
+            router.push('/login');
+            toast("Please Login first", {
+                icon: '⚠️',
+            });
+            return;
+        }
+
+        const isLiked = likedCourses.includes(courseId);
+
+        try {
+            if (isLiked) {
+                // Call UNLIKE API
+                setLikedCourses((prev) => prev.filter((id) => id !== courseId));
+                await removeFromFavouriteService({ courseId });
+            } else {
+                // Call LIKE API
+                setLikedCourses((prev) => [...prev, courseId]);
+                await addToFavouriteService({ courseId });
+            }
+        } catch (error) {
+            console.error("Failed to toggle like:", error);
+        }
     };
 
     const filteredCourses = courses.filter(
         (course) =>
-            course.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            course.description.toLowerCase().includes(searchQuery.toLowerCase())
+            course.Course_Name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            course.Description.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
     return (
@@ -100,7 +114,10 @@ const SearchCoursesPage: React.FC = () => {
                     <h2 className="text-2xl sm:text-3xl font-bold text-gray-200 mb-6 text-center">
                         {searchQuery ? 'Search Results' : 'All Courses'}
                     </h2>
-                    {filteredCourses.length === 0 ? (
+
+                    {isLoading ? (
+                        <Loader />
+                    ) : filteredCourses.length === 0 ? (
                         <p className="text-gray-400 text-base sm:text-lg text-center">
                             No courses found. Try adjusting your search.
                         </p>
@@ -108,37 +125,49 @@ const SearchCoursesPage: React.FC = () => {
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                             {filteredCourses.map((course) => (
                                 <div
-                                    key={course.id}
+                                    key={course._id}
                                     className="bg-white rounded-xl p-4 shadow-lg hover:shadow-xl transition transform hover:-translate-y-1 relative"
                                 >
                                     <div className="relative mb-4">
                                         <img
-                                            src={course.image}
-                                            alt={course.title}
+                                            src={
+                                                course.Image ||
+                                                "https://www.shutterstock.com/image-vector/default-ui-image-placeholder-wireframes-600nw-1037719192.jpg"
+                                            }
+                                            alt={course.Course_Name}
                                             className="w-full h-40 object-cover rounded-lg"
                                         />
                                         <button
-                                            onClick={() => toggleLike(course.id)}
+                                            onClick={() => toggleLike(course._id)}
                                             className="absolute top-2 right-2 p-1 rounded-full bg-white/80 hover:bg-white transition-colors duration-300"
-                                            aria-label={likedCourses.includes(course.id) ? 'Unlike course' : 'Like course'}
+                                            aria-label={
+                                                likedCourses.includes(course._id) ? 'Unlike course' : 'Like course'
+                                            }
                                         >
                                             <FaHeart
                                                 className={`w-5 h-5 ${
-                                                    likedCourses.includes(course.id)
+                                                    likedCourses.includes(course._id)
                                                         ? 'text-[#FF6B6B]'
                                                         : 'text-gray-400'
                                                 }`}
                                             />
                                         </button>
                                     </div>
-                                    <h3 className="text-lg font-semibold text-gray-700 mb-2">{course.title}</h3>
-                                    <p className="text-sm text-[#1E3A8A] mb-3">{course.description}</p>
-                                    <p className="text-sm font-semibold text-gray-700 mb-3">{course.price}</p>
-                                    <Button variant="destructive" className="rounded-lg duration-300 w-full">
-                                        <Link href={`/view/course/${course.id}`} className="text-white">
+
+                                    <h3 className="text-lg font-semibold text-gray-700 mb-2">{course.Course_Name}</h3>
+                                    <p className="text-sm text-[#1E3A8A] mb-3">{course.Description}</p>
+                                    <p className="text-sm text-[#1E3A8A] mb-3">
+                                        By: {course?.Username?.Username || "Unknown"}
+                                    </p>
+                                    <p className="text-sm font-semibold text-gray-700 mb-3">
+                                        Price: ₹{course.Price}
+                                    </p>
+
+                                    <Link href={`/view/course/${course._id}`} passHref>
+                                        <Button variant="destructive" className="rounded-lg duration-300 w-full text-white">
                                             View Course
-                                        </Link>
-                                    </Button>
+                                        </Button>
+                                    </Link>
                                 </div>
                             ))}
                         </div>

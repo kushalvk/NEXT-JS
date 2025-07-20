@@ -2,25 +2,16 @@
 import React, {useState} from 'react';
 import Link from "next/link";
 import toast from "react-hot-toast";
-import {login} from "@/services/AuthService";
+import {loginService} from "@/services/AuthService";
 import {useRouter} from "next/navigation";
-
-export interface LoginData {
-    Username: string;
-    Password: string;
-}
-
-export interface LoginResponse {
-    success: boolean;
-    message: string;
-    UserToken: string;
-}
+import {LoginData, LoginResponse} from "@/utils/Responses";
+import { useAuth } from "@/context/AuthContext";
 
 const Login: React.FC = () => {
     const [Username, setUsername] = useState<string>('');
     const [Password, setPassword] = useState<string>('');
-
     const router = useRouter();
+    const { login } = useAuth();
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -30,19 +21,15 @@ const Login: React.FC = () => {
         const payload: LoginData = {Username, Password};
 
         try {
-            const response: LoginResponse = await login(payload);
+            const response: LoginResponse = await loginService(payload);
 
-            if (!response.success) {
-                toast.error(response.message);
+            if (response.success) {
+                login(response.UserToken);
+                router.back();
                 toast.dismiss(loadingToastId);
             } else {
-                toast.success(response.message);
-                router.push('/');
+                toast.error(response.message);
                 toast.dismiss(loadingToastId);
-                localStorage.setItem('token', response.UserToken);
-                setTimeout(() => {
-                    location.reload();
-                }, 500);
             }
         } catch (error) {
             toast.error('Something went wrong. Please try again.');

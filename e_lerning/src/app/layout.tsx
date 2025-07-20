@@ -4,6 +4,7 @@ import React from "react";
 import HeaderWrapper from "@/components/HeaderWrapper";
 import { Toaster } from 'react-hot-toast';
 import Footer from "@/components/Footer";
+import {AuthProvider} from "@/context/AuthContext";
 
 export const metadata: Metadata = {
   title: "Create Next App",
@@ -20,10 +21,12 @@ export default function RootLayout({
   return (
       <html lang="en" suppressHydrationWarning>
         <body className="antialiased">
-        <Toaster />
-        <HeaderWrapper />
-          <main>{children}</main>
-        <Footer />
+            <Toaster />
+            <AuthProvider>
+                <HeaderWrapper />
+                    <main>{children}</main>
+                <Footer />
+            </AuthProvider>
         </body>
       </html>
   );

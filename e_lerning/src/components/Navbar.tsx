@@ -1,32 +1,25 @@
 'use client';
 
 import Link from 'next/link';
-import React, {useState, useRef, useEffect} from 'react';
+import React, {useState, useRef} from 'react';
 import { CgProfile } from 'react-icons/cg';
 import { RiShoppingCartFill } from 'react-icons/ri';
 import { FaHeart } from 'react-icons/fa';
 import { Button } from '@/components/ui/button';
 import { useRouter } from 'next/navigation';
 import { HiMenu, HiX } from 'react-icons/hi';
+import { useAuth } from "@/context/AuthContext";
 
 const Header: React.FC = () => {
     const router = useRouter();
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
     const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-    const [isLoggedIn, setIsLoggedIn] = useState(false);
-
-    useEffect(() => {
-        const token = localStorage.getItem('token');
-        if (token)
-            setIsLoggedIn(true);
-        else
-            setIsLoggedIn(false);
-    }, []);
+    const { isLoggedIn, logout } = useAuth();
 
     const toggleMenu = () => {
         setIsMenuOpen(!isMenuOpen);
-        setIsProfileDropdownOpen(false); // Close dropdown when toggling main menu
+        setIsProfileDropdownOpen(false);
     };
 
     const toggleProfileDropdown = () => {
@@ -50,8 +43,7 @@ const Header: React.FC = () => {
     };
 
     const handleClickLogout = () => {
-        localStorage.removeItem('token');
-        location.reload();
+        logout();
     }
 
     return (

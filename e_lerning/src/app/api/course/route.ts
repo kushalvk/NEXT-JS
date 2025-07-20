@@ -303,3 +303,33 @@ export async function DELETE(req: Request) {
         }, {status: 500});
     }
 }
+
+export async function GET() {
+    await dbConnect();
+
+    try {
+        const course = await CourseModel.find()
+            .populate("Username", "Username")
+            .sort({ createdAt: -1 })
+            .limit(100);
+
+        if (!course || course.length === 0) {
+            return Response.json({
+                success: false,
+                message: "No courses found for this department",
+            }, {status: 404});
+        }
+
+        return Response.json({
+            success: true,
+            message: "Courses fetched successfully",
+            course
+        })
+    } catch (error) {
+        console.error("Error to fetching course by department", error);
+        return Response.json({
+            success: false,
+            message: "Server error while fetching courses",
+        }, {status: 500});
+    }
+}
