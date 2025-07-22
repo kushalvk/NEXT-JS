@@ -21,6 +21,14 @@ function mockJsonRequest(jsonBody: any): Request {
     } as unknown as Request;
 }
 
+beforeAll(() => {
+    jest.spyOn(console, "error").mockImplementation(() => {});
+});
+
+afterAll(() => {
+    (console.error as jest.Mock).mockRestore();
+});
+
 describe("PUT /api/favourite", () => {
     beforeEach(() => {
         jest.clearAllMocks();

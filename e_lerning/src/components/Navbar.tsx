@@ -14,8 +14,9 @@ const Header: React.FC = () => {
     const router = useRouter();
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
+
     const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-    const { isLoggedIn, logout } = useAuth();
+    const { user, isLoggedIn, logout } = useAuth();
 
     const toggleMenu = () => {
         setIsMenuOpen(!isMenuOpen);
@@ -134,6 +135,17 @@ const Header: React.FC = () => {
                                     onMouseEnter={handleMouseEnter}
                                     onMouseLeave={handleMouseLeave}
                                 >
+                                    {user && (
+                                        <div
+                                            className="text-[#FF6B6B] px-4 py-2 rounded-lg transition-colors duration-300 text-sm"
+                                            onClick={() => {
+                                                setIsProfileDropdownOpen(false);
+                                                setIsMenuOpen(false);
+                                            }}
+                                        >
+                                            {user?.Username}
+                                        </div>
+                                    )}
                                     <Link
                                         href="/uploadCourse"
                                         className="text-[#F5F5F5] hover:text-[#FF6B6B] px-4 py-2 rounded-lg transition-colors duration-300 text-sm"

@@ -23,15 +23,14 @@ export interface LoginResponse {
 export interface CourseResponse {
     success: boolean,
     message: string,
-    course: Course,
+    course: CourseCard,
 }
 
-// FAVOURITE
-export interface FavouriteData {
+export interface CourseIdData {
     courseId: string;
 }
 
-export interface FavouriteResponse {
+export interface UserResponse {
     success: boolean,
     message: string,
     User: User

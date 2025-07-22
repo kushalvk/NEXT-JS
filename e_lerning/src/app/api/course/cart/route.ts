@@ -60,8 +60,7 @@ export async function DELETE(req: Request) {
     await dbConnect();
 
     try {
-        const formData = await req.formData();
-        const courseId = formData.get("courseId")?.toString() || null;
+        const {courseId} = await req.json();
 
         if (!courseId) {
             return Response.json({
@@ -70,7 +69,7 @@ export async function DELETE(req: Request) {
             }, {status: 400});
         }
 
-        const course = await CourseModel.findOne({_id: courseId});
+        const course = await CourseModel.findById(courseId);
 
         if (!course) {
             return Response.json({

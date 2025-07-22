@@ -22,6 +22,13 @@ function mockFormDataWithCourseId(id: string | null) {
     } as unknown as Request;
 }
 
+function mockJsonRequest(body: any): Request {
+    return {
+        json: async () => body,
+        headers: new Headers(),
+    } as unknown as Request;
+}
+
 describe("POST /api/course/cart", () => {
     beforeEach(() => {
         jest.clearAllMocks();
@@ -97,86 +104,85 @@ describe("DELETE /api/course/cart", () => {
         jest.clearAllMocks();
     });
 
-    it('should return 400 if course Id is missing', async () => {
-        const req = mockFormDataWithCourseId(null);
-        const res = await DELETE(req as any);
+    it("should return 400 if course Id is missing", async () => {
+        const req = mockJsonRequest({});
+        const res = await DELETE(req);
         const body = await res.json();
 
         expect(res.status).toBe(400);
         expect(body.message).toMatch(/course id is required/i);
     });
 
-    it('should return 404 if course not found', async () => {
-        (CourseModel.findOne as jest.Mock).mockResolvedValue(null);
+    it("should return 404 if course not found", async () => {
+        (CourseModel.findById as jest.Mock).mockResolvedValue(null);
 
-        const req = mockFormDataWithCourseId(mockCourseId);
-        const res = await DELETE(req as any);
+        const req = mockJsonRequest({ courseId: mockCourseId });
+        const res = await DELETE(req);
         const body = await res.json();
 
         expect(res.status).toBe(404);
         expect(body.message).toMatch(/course not found/i);
     });
 
-    it('should return 404 if user not found', async () => {
-        (CourseModel.findOne as jest.Mock).mockResolvedValue({_id: mockCourseId});
+    it("should return 404 if user not found", async () => {
+        (CourseModel.findById as jest.Mock).mockResolvedValue({ _id: mockCourseId });
 
         (getVerifiedUser as jest.Mock).mockResolvedValue({
             user: null,
             errorResponse: null,
         });
 
-        const req = mockFormDataWithCourseId(mockCourseId);
-        const res = await DELETE(req as any);
+        const req = mockJsonRequest({ courseId: mockCourseId });
+        const res = await DELETE(req);
         const body = await res.json();
 
         expect(res.status).toBe(404);
         expect(body.message).toMatch(/user not found/i);
     });
 
-    it('should return 404 if course id is not in user\'s cart', async () => {
+    it("should return 404 if course id is not in user's cart", async () => {
+        (CourseModel.findById as jest.Mock).mockResolvedValue({ _id: mockCourseId });
+
         (getVerifiedUser as jest.Mock).mockResolvedValue({
             user: {
                 _id: new Types.ObjectId(),
-                Cart: []
+                Cart: [],
             },
-            errorResponse: null
+            errorResponse: null,
         });
 
-        const req = mockFormDataWithCourseId(mockCourseId);
-        const res = await DELETE(req as any);
+        const req = mockJsonRequest({ courseId: mockCourseId });
+        const res = await DELETE(req);
         const body = await res.json();
 
         expect(res.status).toBe(404);
-        expect(body.message).toMatch(/Course doesn't exist in your cart./i);
+        expect(body.message).toMatch(/course doesn't exist in your cart/i);
     });
 
-    it('should return 200 and updated User\'s cart successfully', async () => {
+    it("should return 200 and updated user's cart successfully", async () => {
         const userId = new Types.ObjectId().toString();
+
+        (CourseModel.findById as jest.Mock).mockResolvedValue({ _id: mockCourseId });
 
         (getVerifiedUser as jest.Mock).mockResolvedValue({
             user: {
                 _id: userId,
-                Cart: [mockCourseId]
+                Cart: [mockCourseId],
             },
-            errorResponse: null
+            errorResponse: null,
         });
 
-        (UserModel.findByIdAndUpdate as jest.Mock).mockResolvedValue({
-            _id: userId,
-            Cart: []
-        });
+        const updatedUser = { _id: userId, Cart: [] };
+        (UserModel.findByIdAndUpdate as jest.Mock).mockResolvedValue(updatedUser);
 
-        const req = mockFormDataWithCourseId(mockCourseId);
-        const res = await DELETE(req as any);
+        const req = mockJsonRequest({ courseId: mockCourseId });
+        const res = await DELETE(req);
         const body = await res.json();
 
         expect(res.status).toBe(200);
         expect(body.success).toBe(true);
         expect(body.message).toMatch(/course remove from cart successfully/i);
-        expect(body.User).toEqual({
-            _id: userId,
-            Cart: []
-        })
+        expect(body.User).toEqual(updatedUser);
     });
 });
 
