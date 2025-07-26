@@ -1,23 +1,23 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, {useState, useRef, useEffect} from 'react';
 import Link from 'next/link';
-import { useParams, useRouter } from 'next/navigation';
-import { Button } from '@/components/ui/button';
-import { FaHeart } from 'react-icons/fa';
-import { loggedUser, loggedUserResponse } from '@/services/AuthService';
-import { User } from '@/models/User';
-import { CourseCard, CourseResponse } from '@/utils/Responses';
+import {useParams, useRouter} from 'next/navigation';
+import {Button} from '@/components/ui/button';
+import {FaHeart} from 'react-icons/fa';
+import {loggedUser, loggedUserResponse} from '@/services/AuthService';
+import {User} from '@/models/User';
+import {CourseCard, CourseResponse} from '@/utils/Responses';
 import {addToCartCourse, buyCourse, getCourseById, RemoveFromCartCourse} from '@/services/CourseService';
 import Loader from "@/components/Loader";
 import toast from "react-hot-toast";
-import { addToFavouriteService, removeFromFavouriteService } from "@/services/FavouriteService";
-import { completeVideoApi } from '@/services/WatchedService';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {addToFavouriteService, removeFromFavouriteService} from "@/services/FavouriteService";
+import {completeVideoApi} from '@/services/WatchedService';
+import {Dialog, DialogContent, DialogHeader, DialogTitle} from "@/components/ui/dialog";
 import {useAuth} from "@/context/AuthContext";
 
 const ViewCoursePage: React.FC = () => {
-    const { id } = useParams();
+    const {id} = useParams();
     const [likedCourses, setLikedCourses] = useState<boolean>(false);
     const videoRefs = useRef<{ [key: string]: HTMLVideoElement | null }>({});
     const [userData, setUserData] = useState<User>();
@@ -26,9 +26,10 @@ const ViewCoursePage: React.FC = () => {
     const [shouldFetchUserData, setShouldFetchUserData] = useState(false);
     const [showLoginPopup, setShowLoginPopup] = useState(false);
     const [isInCart, setIsInCart] = useState<boolean>(false);
+    const [userUploded, setUserUploded] = useState<boolean>(false);
 
     const router = useRouter();
-    const { logout } = useAuth();
+    const {logout} = useAuth();
 
     const fetchUserData = async () => {
         try {
@@ -43,6 +44,9 @@ const ViewCoursePage: React.FC = () => {
                 }
                 if (response.User.Cart.includes(id)) {
                     setIsInCart(true);
+                }
+                if (response.User.Upload_Course.includes(id)) {
+                    setUserUploded(true);
                 }
             }
         } catch (error) {
@@ -76,17 +80,17 @@ const ViewCoursePage: React.FC = () => {
     const toggleLike = async (courseId: string) => {
         if (!userData) {
             router.push('/login');
-            toast("Please Login first", { icon: '⚠️' });
+            toast("Please Login first", {icon: '⚠️'});
             return;
         }
 
         try {
             if (likedCourses) {
                 setLikedCourses(false);
-                await removeFromFavouriteService({ courseId });
+                await removeFromFavouriteService({courseId});
             } else {
                 setLikedCourses(true);
-                await addToFavouriteService({ courseId });
+                await addToFavouriteService({courseId});
             }
         } catch (error) {
             console.error("Failed to toggle like:", error);
@@ -139,7 +143,7 @@ const ViewCoursePage: React.FC = () => {
     if (!CourseData) {
         return (
             <div className="flex h-screen w-screen bg-blue-900 justify-center items-center">
-                <Loader />
+                <Loader/>
             </div>
         );
     }
@@ -161,7 +165,7 @@ const ViewCoursePage: React.FC = () => {
     const handleBuyCourse = async (courseId: string) => {
         if (!userData) {
             router.push('/login');
-            toast("Please Login first", { icon: '⚠️' });
+            toast("Please Login first", {icon: '⚠️'});
             return;
         }
 
@@ -186,7 +190,7 @@ const ViewCoursePage: React.FC = () => {
     const handleCartCourse = async (courseId: string) => {
         if (!userData) {
             router.push('/login');
-            toast("Please Login first", { icon: '⚠️' });
+            toast("Please Login first", {icon: '⚠️'});
             return;
         }
 
@@ -221,7 +225,8 @@ const ViewCoursePage: React.FC = () => {
     }
 
     return (
-        <div className="min-h-screen w-full flex flex-col bg-blue-900 items-stretch p-4 font-sans relative overflow-x-hidden">
+        <div
+            className="min-h-screen w-full flex flex-col bg-blue-900 items-stretch p-4 font-sans relative overflow-x-hidden">
             <div className="flex flex-col items-center justify-start p-4 sm:p-6 lg:p-10 max-h-full flex-1">
                 <div
                     className="flex flex-col mt-16 lg:flex-row items-center justify-between text-center lg:text-left max-w-6xl mb-5 w-full">
@@ -248,7 +253,7 @@ const ViewCoursePage: React.FC = () => {
                                         >
                                             Remove from Cart
                                         </Button>
-                                        ) : (
+                                    ) : (
                                         <Button variant="destructive"
                                                 className="text-white px-6 py-3 rounded-xl duration-300 font-semibold sm:text-lg"
                                                 onClick={() => handleCartCourse(CourseData._id)}
@@ -300,26 +305,32 @@ const ViewCoursePage: React.FC = () => {
 
                 {isBuyed ? (
                     <>
-                        <div className="w-full max-w-6xl mb-10 px-2 sm:px-4">
-                            <h2 className="text-2xl sm:text-3xl font-bold text-gray-200 mb-4">Progress</h2>
-                            <div className="bg-white/10 rounded-lg p-6">
-                                <p className="text-white text-base sm:text-lg mb-4">
-                                    <span className="font-semibold">Progress:</span> {Math.round(courseProgress)}% Complete
-                                </p>
-                                <div className="w-full bg-gray-600 rounded-full h-2.5">
-                                    <div className="bg-[#FF6B6B] h-2.5 rounded-full" style={{width: `${courseProgress}%`}}/>
+                        {!userUploded && (
+                            <div className="w-full max-w-6xl mb-10 px-2 sm:px-4">
+                                <h2 className="text-2xl sm:text-3xl font-bold text-gray-200 mb-4">Progress</h2>
+                                <div className="bg-white/10 rounded-lg p-6">
+                                    <p className="text-white text-base sm:text-lg mb-4">
+                                        <span className="font-semibold">Progress:</span> {Math.round(courseProgress)}%
+                                        Complete
+                                    </p>
+                                    <div className="w-full bg-gray-600 rounded-full h-2.5">
+                                        <div className="bg-[#FF6B6B] h-2.5 rounded-full"
+                                             style={{width: `${courseProgress}%`}}/>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
+                        )}
 
                         <div className="w-full max-w-6xl mb-16 px-2 sm:px-4">
-                            <div className="flex justify-between items-center mb-6">
-                                <h2 className="text-2xl sm:text-3xl font-bold text-gray-200">Course Videos</h2>
-                                <Button variant="outline"
-                                        className="text-white px-6 py-3 rounded-xl duration-300 font-semibold sm:text-lg">
-                                    <Link href={`/view/course/${CourseData._id}/add-video`}>Add Video</Link>
-                                </Button>
-                            </div>
+                            {userUploded && (
+                                <div className="flex justify-between items-center mb-6">
+                                    <h2 className="text-2xl sm:text-3xl font-bold text-gray-200">Course Videos</h2>
+                                    <Button variant="outline"
+                                            className="text-white px-6 py-3 rounded-xl duration-300 font-semibold sm:text-lg">
+                                        <Link href={`/view/course/${CourseData._id}/add-video`}>Add Video</Link>
+                                    </Button>
+                                </div>
+                            )}
                             {CourseData.Video.length === 0 ? (
                                 <p className="text-gray-400 text-base sm:text-lg text-center">
                                     No videos available. Add a video to get started!
@@ -341,7 +352,8 @@ const ViewCoursePage: React.FC = () => {
                                                 className="bg-white/10 rounded-lg p-4 flex flex-col sm:flex-row items-start sm:items-center gap-4"
                                             >
                                                 <div className="w-full sm:w-1/3">
-                                                    <div className="relative" style={{width: '100%', paddingBottom: '56.25%'}}>
+                                                    <div className="relative"
+                                                         style={{width: '100%', paddingBottom: '56.25%'}}>
                                                         <video
                                                             controls
                                                             className="absolute top-0 left-0 w-full h-full rounded-lg"
@@ -352,12 +364,14 @@ const ViewCoursePage: React.FC = () => {
                                                         />
                                                     </div>
                                                 </div>
-                                                <div className="flex-1">
-                                                    <p className="text-gray-400 text-sm sm:text-base mb-2">{video.Description}</p>
-                                                    <p className={`text-sm font-semibold ${isCompleted ? 'text-green-400' : 'text-yellow-400'}`}>
-                                                        Status: {isCompleted ? 'Completed' : 'Pending'}
-                                                    </p>
-                                                </div>
+                                                    <div className="flex-1">
+                                                        <p className="text-gray-400 text-sm sm:text-base mb-2">{video.Description}</p>
+                                                        {!userUploded && (
+                                                            <p className={`text-sm font-semibold ${isCompleted ? 'text-green-400' : 'text-yellow-400'}`}>
+                                                                Status: {isCompleted ? 'Completed' : 'Pending'}
+                                                            </p>
+                                                        )}
+                                                    </div>
                                             </div>
                                         );
                                     })}
@@ -376,7 +390,8 @@ const ViewCoursePage: React.FC = () => {
                     <p className="text-gray-400 text-base sm:text-lg mb-6 leading-relaxed">
                         Start this course now or explore more courses to continue your learning journey.
                     </p>
-                    <Button variant="outline" className="text-white px-6 py-3 rounded-xl duration-300 font-semibold sm:text-lg">
+                    <Button variant="outline"
+                            className="text-white px-6 py-3 rounded-xl duration-300 font-semibold sm:text-lg">
                         <Link href="/courses">Browse All Courses</Link>
                     </Button>
                 </div>

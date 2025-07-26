@@ -106,3 +106,37 @@ export async function DELETE(req: Request) {
         }, {status: 500});
     }
 }
+
+export async function GET(req: Request) {
+    await dbConnect();
+
+    try {
+        const {user, errorResponse} = await getVerifiedUser(req);
+        if (errorResponse) return errorResponse;
+
+        const updatedUser = await UserModel.findById(user._id)
+            .populate({
+                path: "Favourite",
+                select: "Image Course_Name Description Price"
+            });
+
+        if (!updatedUser) {
+            return Response.json({
+                success: false,
+                message: "No Favourite found",
+            }, {status: 404});
+        }
+
+        return Response.json({
+            success: true,
+            message: "Favourite found Successfully",
+            User: updatedUser,
+        }, {status: 200});
+    } catch (error) {
+        console.error("Error at getting course from favourite", error);
+        return Response.json({
+            success: false,
+            message: "Error at getting course from favourite",
+        }, {status: 500});
+    }
+}

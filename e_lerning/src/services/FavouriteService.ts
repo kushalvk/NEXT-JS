@@ -35,3 +35,17 @@ export const removeFromFavouriteService = async (data: CourseIdData): Promise<Us
         Error(error);
     }
 }
+
+export const getFavouriteService = async (): Promise<UserResponse> => {
+    try {
+        const token = localStorage.getItem("token");
+        const response = await axios.get<UserResponse>(`/api/favourite`, {
+            headers: {
+                "authorization": `${token}`
+            }
+        });
+        return response.data;
+    } catch (error) {
+        Error(error);
+    }
+}

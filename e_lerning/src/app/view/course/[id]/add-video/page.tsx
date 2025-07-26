@@ -4,20 +4,39 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
+import toast from "react-hot-toast";
+import {addVideo} from "@/services/CourseService";
 
 const AddVideoPage: React.FC = () => {
     const { id } = useParams();
     const [videoFile, setVideoFile] = useState<File | null>(null);
     const [description, setDescription] = useState('');
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (videoFile && description) {
-            // In a real app, send videoFile and description to backend API (e.g., POST /api/courses/${id}/videos)
-            console.log('Video uploaded:', videoFile.name, 'Description:', description);
-            // Reset form after submission (optional)
-            setVideoFile(null);
-            setDescription('');
+
+        const loadingToastId = toast.loading("Please wait while we finalize the details...");
+
+        try {
+            const formData = new FormData();
+
+            formData.append("courseId", id);
+            formData.append("Video", videoFile);
+            formData.append("Video_Description", description);
+
+            const response = await addVideo(formData);
+
+            if (response.success) {
+                toast.success('You successfully add Video to this course!');
+            }
+        } catch (error) {
+            toast.error(error.message);
+        } finally {
+            toast.dismiss(loadingToastId);
+            if (videoFile && description) {
+                setVideoFile(null);
+                setDescription('');
+            }
         }
     };
 

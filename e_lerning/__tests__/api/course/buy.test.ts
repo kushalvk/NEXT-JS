@@ -1,7 +1,7 @@
 /**
  * @jest-environment node
  */
-import { PUT, DELETE } from "@/app/api/course/buy/route";
+import { PUT, DELETE, GET } from "@/app/api/course/buy/route";
 import UserModel from "@/models/User";
 import CourseModel from "@/models/Course";
 import { Types } from "mongoose";
@@ -198,5 +198,72 @@ describe("DELETE /api/course/delete", () => {
 
         expect(res.status).toBe(500);
         expect(body.message).toMatch(/error at deleting course/i);
+    });
+});
+
+describe("GET /api/course/buy", () => {
+    it("should return 200 and include total VideoLength", async () => {
+        const userId = new Types.ObjectId().toString();
+
+        (getVerifiedUser as jest.Mock).mockResolvedValue({
+            user: { _id: userId },
+            errorResponse: null,
+        });
+
+        const mockUserDoc = {
+            _id: userId,
+            Buy_Course: [
+                {
+                    courseId: {
+                        _id: "course1",
+                        Course_name: "React",
+                        Image: "react.png",
+                        Description: "Learn React",
+                        Video: [{}, {}, {}], // 3 videos
+                    },
+                },
+                {
+                    courseId: {
+                        _id: "course2",
+                        Course_name: "Node",
+                        Image: "node.png",
+                        Description: "Learn Node.js",
+                        Video: [{}], // 1 video
+                    },
+                },
+            ],
+        };
+
+        (UserModel.findById as jest.Mock).mockReturnValue({
+            populate: jest.fn().mockReturnThis(),
+            lean: jest.fn().mockResolvedValue(mockUserDoc),
+        });
+
+        const req = {} as Request;
+        const res = await GET(req);
+        const body = await res.json();
+
+        expect(res.status).toBe(200);
+        expect(body.success).toBe(true);
+        expect(body.message).toMatch(/fetch successfully/i);
+    });
+
+    it("should return 500 on server error", async () => {
+        (getVerifiedUser as jest.Mock).mockResolvedValue({
+            user: { _id: "some-user-id" },
+            errorResponse: null,
+        });
+
+        (UserModel.findById as jest.Mock).mockImplementation(() => {
+            throw new Error("DB Error");
+        });
+
+        const req = {} as Request;
+        const res = await GET(req);
+        const body = await res.json();
+
+        expect(res.status).toBe(500);
+        expect(body.success).toBe(false);
+        expect(body.message).toMatch(/error at getting course/i);
     });
 });

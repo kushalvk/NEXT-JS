@@ -1,38 +1,79 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, {useEffect, useState} from 'react';
 import Link from 'next/link';
-import { Button } from '@/components/ui/button';
+import {Button} from '@/components/ui/button';
+import {User} from "@/models/User";
+import {loggedUser, loggedUserResponse, updatedProfile} from "@/services/AuthService";
+import toast from "react-hot-toast";
 
 const ProfilePage: React.FC = () => {
     const [isEditing, setIsEditing] = useState(false);
-    const [user, setUser] = useState({
-        username: 'kushal_v',
-        email: 'kushal@example.com',
-        fullName: 'Kushal Vaghela',
-        joined: 'January 2025',
-    });
+    const [userData, setUserData] = useState<User>();
+
+    const fetchUserData = async () => {
+        try {
+            const response: loggedUserResponse = await loggedUser();
+            if (response.success) {
+                setUserData(response.User);
+            }
+        } catch (error) {
+            console.error(error.message);
+        }
+    };
+
+    useEffect(() => {
+        fetchUserData();
+    }, []);
 
     const handleUpdate = () => {
         setIsEditing(true);
     };
 
-    const handleSave = () => {
-        setIsEditing(false);
-        // In a real app, save the updated user data to an API or backend here
+    const handleSave = async () => {
+        try {
+            const formData = new FormData();
+
+            if (!userData) return;
+
+            formData.append("Username", userData.Username);
+            formData.append("Email", userData.Email);
+            formData.append("Full_name", userData.Full_name);
+
+            const response = await updatedProfile(formData);
+
+            if (response.success) {
+                toast.success("Profile updated successfully!");
+            }
+        } catch (error) {
+            console.error(error.message);
+        } finally {
+            setIsEditing(false);
+        }
     };
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
-        setUser((prev) => ({ ...prev, [name]: value }));
+
+        const fieldMap = {
+            username: "Username",
+            email: "Email",
+            fullName: "Full_name",
+        };
+
+        const actualKey = fieldMap[name];
+
+        setUserData((prev) => ({ ...prev, [actualKey]: value }));
     };
 
     return (
-        <div className="min-h-screen w-full flex flex-col bg-blue-900 items-stretch p-4 font-sans relative overflow-x-hidden">
+        <div
+            className="min-h-screen w-full flex flex-col bg-blue-900 items-stretch p-4 font-sans relative overflow-x-hidden">
             {/* Main Content */}
             <div className="flex flex-col items-center justify-start p-4 sm:p-6 lg:p-10 max-h-full">
                 {/* Hero Section */}
-                <div className="flex flex-col mt-16 lg:flex-row items-center justify-between text-center lg:text-left max-w-6xl mb-12 w-full">
+                <div
+                    className="flex flex-col mt-16 lg:flex-row items-center justify-between text-center lg:text-left max-w-6xl mb-12 w-full">
                     <div className="flex-1">
                         <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-white mb-4 tracking-tight">
                             Your Profile
@@ -62,7 +103,7 @@ const ProfilePage: React.FC = () => {
                                     <input
                                         type="text"
                                         name="username"
-                                        value={user.username}
+                                        value={userData?.Username}
                                         onChange={handleChange}
                                         className="w-full px-4 py-2 bg-white/10 text-gray-700 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B6B] transition-all duration-300 text-sm"
                                     />
@@ -72,7 +113,7 @@ const ProfilePage: React.FC = () => {
                                     <input
                                         type="email"
                                         name="email"
-                                        value={user.email}
+                                        value={userData?.Email}
                                         onChange={handleChange}
                                         className="w-full px-4 py-2 bg-white/10 text-gray-700 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B6B] transition-all duration-300 text-sm"
                                     />
@@ -82,12 +123,12 @@ const ProfilePage: React.FC = () => {
                                     <input
                                         type="text"
                                         name="fullName"
-                                        value={user.fullName}
+                                        value={userData?.Full_name}
                                         onChange={handleChange}
                                         className="w-full px-4 py-2 bg-white/10 text-gray-700 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B6B] transition-all duration-300 text-sm"
                                     />
                                 </div>
-                                <p className="text-sm text-[#1E3A8A] mb-4">Joined: {user.joined}</p>
+                                {/*<p className="text-sm text-[#1E3A8A] mb-4">Joined: {userData.joined}</p>*/}
                                 <Button
                                     variant="destructive"
                                     className="text-white rounded-lg duration-300"
@@ -98,10 +139,10 @@ const ProfilePage: React.FC = () => {
                             </>
                         ) : (
                             <>
-                                <p className="text-lg font-semibold text-gray-700 mb-2">Username: {user.username}</p>
-                                <p className="text-sm text-[#1E3A8A] mb-2">Email: {user.email}</p>
-                                <p className="text-sm text-[#1E3A8A] mb-2">Full Name: {user.fullName}</p>
-                                <p className="text-sm text-[#1E3A8A] mb-4">Joined: {user.joined}</p>
+                                <p className="text-lg font-semibold text-gray-700 mb-2">Username: {userData?.Username}</p>
+                                <p className="text-sm text-[#1E3A8A] mb-2">Email: {userData?.Email}</p>
+                                <p className="text-sm text-[#1E3A8A] mb-2">Full Name: {userData?.Full_name}</p>
+                                <p className="text-sm text-[#1E3A8A] mb-4">Joined: {new Date(userData?.createdAt).toLocaleString()}</p>
                                 <Button
                                     variant="outline"
                                     className="text-[#1E3A8A] border-[#1E3A8A] hover:bg-[#1E3A8A] rounded-lg duration-300"

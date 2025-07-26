@@ -43,3 +43,19 @@ export const loggedUser = async () => {
         Error(error);
     }
 }
+
+export const updatedProfile = async (data: FormData): Promise<LoginResponse> => {
+    try {
+        const token = localStorage.getItem('token');
+
+        const response = await axios.put<LoginResponse>('/api/profile', data, {
+            headers: {
+                authorization: `${token}`
+            }
+        });
+
+        return response.data;
+    } catch (error) {
+        Error(error);
+    }
+}

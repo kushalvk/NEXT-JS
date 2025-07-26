@@ -124,3 +124,31 @@ export async function DELETE(req: Request) {
         }, {status: 500});
     }
 }
+
+export async function GET(req: Request) {
+    await dbConnect();
+
+    try {
+        const {user, errorResponse} = await getVerifiedUser(req);
+        if (errorResponse) return errorResponse;
+
+        const modifiedUser = await UserModel.findById(user._id)
+            .populate({
+                path: "Buy_Course.courseId",
+                select: "Image Course_Name Description Video"
+            })
+            .lean();
+
+        return Response.json({
+            success: true,
+            message: "Buy Course course fetch successfully",
+            User: modifiedUser,
+        }, {status: 200});
+    } catch (error) {
+        console.error("Error at getting course from users ", error);
+        return Response.json({
+            success: false,
+            message: "Error at getting course from users ",
+        }, {status: 500});
+    }
+}

@@ -62,3 +62,16 @@ export const RemoveFromCartCourse = async (courseId: CourseIdData): Promise<User
         Error(error);
     }
 }
+
+export const addVideo = async (data: FormData): Promise<CourseResponse> => {
+    try {
+        const response = await axios.put<CourseResponse>(`/api/course/video`, data, {
+            headers: {
+                "authorization": `${token}`,
+            },
+        });
+        return response.data;
+    } catch (error) {
+        Error(error);
+    }
+}

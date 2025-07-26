@@ -67,6 +67,7 @@ export interface User extends Document {
     Buy_Course: BuyCourse[];
     Watched_Course: WatchedCourse[];
     Certificate: Certifiate[];
+    createdAt: Date;
 }
 
 const UserSchema: Schema<User> = new Schema({

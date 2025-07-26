@@ -1,53 +1,104 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, {useEffect, useState} from 'react';
 import Link from 'next/link';
-import { Button } from '@/components/ui/button';
-import { FiSearch } from 'react-icons/fi';
-import { FaHeart } from 'react-icons/fa';
+import {Button} from '@/components/ui/button';
+import {FiSearch} from 'react-icons/fi';
+import {FaHeart} from 'react-icons/fa';
+import {User} from "@/models/User";
+import {loggedUser, loggedUserResponse} from "@/services/AuthService";
+import toast from "react-hot-toast";
+import {addToFavouriteService, getFavouriteService, removeFromFavouriteService} from "@/services/FavouriteService";
+import {useRouter} from "next/navigation";
+import Loader from "@/components/Loader";
 
 const FavoritePage: React.FC = () => {
     const [searchQuery, setSearchQuery] = useState('');
-    const [likedCourses, setLikedCourses] = useState<number[]>([1, 4]); // Initially liked courses
+    const [likedCourses, setLikedCourses] = useState<any>([]);
+    const [userData, setUserData] = useState<User>();
+    const [favouriteCourses, setFavouriteCourses] = useState<any>([]);
+    const [isLoding, setIsLoding] = useState<boolean>(true);
 
-    const favoriteCourses = [
-        {
-            id: 1,
-            title: 'React Basics',
-            category: 'Development',
-            description: 'Learn the fundamentals of React to build dynamic web applications.',
-            price: '$49.99',
-            image: 'https://www.shutterstock.com/image-vector/default-ui-image-placeholder-wireframes-600nw-1037719192.jpg',
-        },
-        {
-            id: 4,
-            title: 'Digital Marketing 101',
-            category: 'Marketing',
-            description: 'Boost your marketing skills with SEO and social media strategies.',
-            price: '$39.99',
-            image: 'https://images.unsplash.com/photo-1557838923-2985c318be48?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=60',
-        },
-    ];
+    const router = useRouter();
 
-    const toggleLike = (courseId: number) => {
-        setLikedCourses((prev) =>
-            prev.includes(courseId) ? prev.filter((id) => id !== courseId) : [...prev, courseId]
-        );
-        // In a real app, sync with backend or update favorites list
+    const fetchUserData = async () => {
+        try {
+            const response: loggedUserResponse = await loggedUser();
+            if (response?.success) {
+                setUserData(response.User);
+                if (response.User?.Favourite) {
+                    setLikedCourses(response.User.Favourite);
+                }
+            }
+        } catch (error) {
+            console.error(error.message);
+        }
+    };
+
+    const getFavourite = async () => {
+        try {
+            const response = await getFavouriteService();
+
+            if (response?.success) {
+                setFavouriteCourses(response.User.Favourite);
+            }
+        } catch (error) {
+            console.error(error.message);
+        } finally {
+            setIsLoding(false);
+        }
+    }
+
+    useEffect(() => {
+        fetchUserData();
+        getFavourite();
+    }, []);
+
+    const favoriteCourses = favouriteCourses;
+
+    const toggleLike = async (courseId: string) => {
+
+        if (!userData) {
+            router.push('/login');
+            toast("Please Login first", {
+                icon: '⚠️',
+            });
+            return;
+        }
+
+        const isLiked = likedCourses.includes(courseId);
+
+        try {
+            if (isLiked) {
+                // Call UNLIKE API
+                setLikedCourses((prev) => prev.filter((id) => id !== courseId));
+                setFavouriteCourses((prev) => prev.filter((course) => course._id !== courseId));
+                await removeFromFavouriteService({courseId});
+            } else {
+                // Call LIKE API
+                setLikedCourses((prev) => [...prev, courseId]);
+                const newCourse = await addToFavouriteService({courseId});
+                setFavouriteCourses((prev) => [...prev, newCourse]);
+            }
+        } catch (error) {
+            console.error("Failed to toggle like:", error);
+        }
     };
 
     const filteredCourses = favoriteCourses.filter(
         (course) =>
-            course.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            course.description.toLowerCase().includes(searchQuery.toLowerCase())
+            course.Course_Name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            course.Description?.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
     return (
-        <div className="min-h-screen w-full flex flex-col bg-blue-900 items-stretch p-4 font-sans relative overflow-x-hidden">
+        <div
+            className="min-h-screen w-full flex flex-col bg-blue-900 items-stretch p-4 font-sans relative overflow-x-hidden">
             {/* Main Content */}
             <div className="flex flex-col items-center justify-start p-4 sm:p-6 lg:p-10 max-h-full flex-1">
                 {/* Hero Section */}
-                <div className="flex flex-col mt-16 lg:flex-row items-center justify-between text-center lg:text-left max-w-6xl mb-5 w-full">
+                <div
+                    className="flex flex-col mt-16 lg:flex-row items-center justify-between text-center lg:text-left max-w-6xl mb-5 w-full">
                     <div className="flex-1">
                         <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-white mb-4 tracking-tight">
                             My Favorite Courses
@@ -88,7 +139,9 @@ const FavoritePage: React.FC = () => {
                 {/* Favorite Courses List */}
                 <div className="w-full max-w-6xl mb-16 px-2 sm:px-4">
                     <h2 className="text-2xl sm:text-3xl font-bold text-gray-200 mb-6">Your Favorite Courses</h2>
-                    {filteredCourses.length === 0 ? (
+                    {isLoding ? (
+                        <Loader/>
+                    ) : filteredCourses.length === 0 ? (
                         <p className="text-gray-400 text-base sm:text-lg text-center">
                             No favorite courses found. Add some courses to your favorites!
                         </p>
@@ -96,47 +149,48 @@ const FavoritePage: React.FC = () => {
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                             {filteredCourses.map((course) => (
                                 <div
-                                    key={course.id}
+                                    key={course._id}
                                     className="bg-white rounded-xl p-4 shadow-lg hover:shadow-xl transition transform hover:-translate-y-1 relative"
                                 >
                                     <div className="relative mb-4">
                                         <img
-                                            src={course.image}
-                                            alt={course.title}
+                                            src={course.Image || "https://www.shutterstock.com/image-vector/default-ui-image-placeholder-wireframes-600nw-1037719192.jpg"}
+                                            alt={course.Course_Name}
                                             className="w-full h-40 object-cover rounded-lg"
                                         />
-                                        <div className="absolute inset-0 rounded-lg bg-gradient-to-r from-black/50 to-transparent pointer-events-none"></div>
+                                        <div
+                                            className="absolute inset-0 rounded-lg bg-gradient-to-r from-black/50 to-transparent pointer-events-none"></div>
                                         <button
-                                            onClick={() => toggleLike(course.id)}
+                                            onClick={() => toggleLike(course._id)}
                                             className="absolute top-2 right-2 p-1 rounded-full bg-white/80 hover:bg-white transition-colors duration-300"
-                                            aria-label={likedCourses.includes(course.id) ? 'Unlike course' : 'Like course'}
+                                            aria-label={likedCourses.includes(course._id) ? 'Unlike course' : 'Like course'}
                                         >
                                             <FaHeart
                                                 className={`w-5 h-5 ${
-                                                    likedCourses.includes(course.id)
+                                                    likedCourses.includes(course._id)
                                                         ? 'text-[#FF6B6B]'
                                                         : 'text-gray-400'
                                                 }`}
                                             />
                                         </button>
                                     </div>
-                                    <h3 className="text-lg font-semibold text-gray-700 mb-2">{course.title}</h3>
-                                    <p className="text-sm text-[#1E3A8A] mb-3">{course.description}</p>
-                                    <p className="text-sm font-semibold text-gray-700 mb-3">{course.price}</p>
+                                    <h3 className="text-lg font-semibold text-gray-700 mb-2">{course.Course_Name}</h3>
+                                    <p className="text-sm text-[#1E3A8A] mb-3">{course.Description}</p>
+                                    <p className="text-sm font-semibold text-gray-700 mb-3">{course.Price}</p>
                                     <div className="flex gap-2">
                                         <Button variant="destructive" className="rounded-lg duration-300 flex-1">
-                                            <Link href={`/courses/${course.id}`} className="text-white">
+                                            <Link href={`/courses/${course._id}`} className="text-white">
                                                 View Course
                                             </Link>
                                         </Button>
                                         <Button
                                             variant="outline"
                                             className="rounded-lg duration-300 flex items-center justify-center"
-                                            onClick={() => toggleLike(course.id)}
+                                            onClick={() => toggleLike(course._id)}
                                         >
                                             <FaHeart
                                                 className={`w-5 h-5 ${
-                                                    likedCourses.includes(course.id)
+                                                    likedCourses.includes(course._id)
                                                         ? 'text-[#FF6B6B]'
                                                         : 'text-gray-400'
                                                 }`}
