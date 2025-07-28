@@ -42,7 +42,7 @@ const Dropdown: React.FC<{ title: string; items: string[]; basePath: string }> =
                 {items.map((item, index) => (
                     <Link
                         key={index}
-                        href={`${basePath}/${item.toLowerCase().replace(/ & /g, '-').replace(/\s+/g, '-')}`}
+                        href={`${basePath}/${item}`}
                         className="block px-3 lg:px-4 py-2 text-xs lg:text-sm text-gray-300 hover:bg-indigo-600 hover:text-white transition-colors duration-200"
                         onClick={() => setIsOpen(false)}
                     >

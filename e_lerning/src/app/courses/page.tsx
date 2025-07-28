@@ -1,89 +1,108 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, {useEffect, useState} from 'react';
 import Link from 'next/link';
-import { Button } from '@/components/ui/button';
-import { FiSearch } from 'react-icons/fi';
-import { FaHeart } from 'react-icons/fa';
+import {Button} from '@/components/ui/button';
+import {FiSearch} from 'react-icons/fi';
+import {FaHeart} from 'react-icons/fa';
+import {Course} from "@/models/Course";
+import {CourseResponse} from "@/utils/Responses";
+import {getAllCourses} from "@/services/CourseService";
+import {User} from "@/models/User";
+import {loggedUser, loggedUserResponse} from "@/services/AuthService";
+import toast from "react-hot-toast";
+import {addToFavouriteService, removeFromFavouriteService} from "@/services/FavouriteService";
+import {useRouter} from "next/navigation";
+import Loader from "@/components/Loader";
 
 const CoursesPage: React.FC = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedCategory, setSelectedCategory] = useState('All');
-    const [likedCourses, setLikedCourses] = useState<number[]>([]);
+    const [likedCourses, setLikedCourses] = useState<any[]>([]);
+    const [courses, setCourses] = useState<Course[]>([]);
+    const [userData, setUserData] = useState<User>();
+    const [isLoding, setIsLoding] = useState(true);
 
-    const courses = [
-        {
-            id: 1,
-            title: 'React Basics',
-            category: 'Development',
-            description: 'Learn the fundamentals of React to build dynamic web applications.',
-            price: '$49.99',
-            image: 'https://www.shutterstock.com/image-vector/default-ui-image-placeholder-wireframes-600nw-1037719192.jpg',
-        },
-        {
-            id: 2,
-            title: 'Data Science with Python',
-            category: 'Data Science',
-            description: 'Master data analysis and machine learning with Python.',
-            price: '$79.99',
-            image: 'https://www.shutterstock.com/image-vector/default-ui-image-placeholder-wireframes-600nw-1037719192.jpg',
-        },
-        {
-            id: 3,
-            title: 'UI/UX Design Essentials',
-            category: 'Design',
-            description: 'Create user-friendly interfaces with modern design principles.',
-            price: '$59.99',
-            image: 'https://www.shutterstock.com/image-vector/default-ui-image-placeholder-wireframes-600nw-1037719192.jpg',
-        },
-        {
-            id: 4,
-            title: 'Digital Marketing 101',
-            category: 'Marketing',
-            description: 'Boost your marketing skills with SEO and social media strategies.',
-            price: '$39.99',
-            image: 'https://www.shutterstock.com/image-vector/default-ui-image-placeholder-wireframes-600nw-1037719192.jpg',
-        },
-        {
-            id: 5,
-            title: 'Cloud Computing with AWS',
-            category: 'IT & Software',
-            description: 'Explore cloud infrastructure with Amazon Web Services.',
-            price: '$69.99',
-            image: 'https://images.unsplash.com/photo-1618424181497-157f25b6ddd5?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=60',
-        },
-        {
-            id: 6,
-            title: 'Leadership Skills',
-            category: 'Personal Development',
-            description: 'Develop leadership qualities to inspire and manage teams.',
-            price: '$29.99',
-            image: 'https://www.shutterstock.com/image-vector/default-ui-image-placeholder-wireframes-600nw-1037719192.jpg',
-        },
-    ];
+    const router = useRouter();
 
-    const categories = ['All', 'Development', 'Data Science', 'Design', 'Marketing', 'IT & Software', 'Personal Development'];
+    const fetchUserData = async () => {
+        try {
+            const response: loggedUserResponse = await loggedUser();
+
+            if (response.success) {
+                setUserData(response.User);
+                setLikedCourses(response.User.Favourite);
+            }
+        } catch (error) {
+            console.error(error.message);
+        }
+    }
+
+    const fetchCourses = async () => {
+        try {
+            const response: CourseResponse = await getAllCourses();
+
+            if (response.success) {
+                setCourses(response.course);
+            }
+        } catch (error) {
+            console.error(error.message);
+        } finally {
+            setIsLoding(false);
+        }
+    }
+
+    useEffect(() => {
+        fetchUserData();
+        fetchCourses();
+    }, []);
+
+    const categories = ['All', 'Web Development', 'Mobile Apps', 'Programming Languages', 'Game Development',
+        'Entrepreneurship', 'Management', 'Sales', 'Business Strategy', 'Accounting', 'Bookkeeping', 'Financial Analysis', 'Investing'];
 
     const filteredCourses = courses.filter((course) => {
         const matchesSearch =
-            course.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            course.description.toLowerCase().includes(searchQuery.toLowerCase());
-        const matchesCategory = selectedCategory === 'All' || course.category === selectedCategory;
+            course.Course_Name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            course.Description.toLowerCase().includes(searchQuery.toLowerCase());
+        const matchesCategory = selectedCategory === 'All' || course.Department === selectedCategory;
         return matchesSearch && matchesCategory;
     });
 
-    const toggleFavorite = (courseId: number) => {
-        setLikedCourses((prev) =>
-            prev.includes(courseId) ? prev.filter((id) => id !== courseId) : [...prev, courseId]
-        );
+    const toggleLike = async (courseId: string) => {
+
+        if (!userData) {
+            router.push('/login');
+            toast("Please Login first", {
+                icon: '⚠️',
+            });
+            return;
+        }
+
+        const isLiked = likedCourses.includes(courseId);
+
+        try {
+            if (isLiked) {
+                // Call UNLIKE API
+                setLikedCourses((prev) => prev.filter((id) => id !== courseId));
+                await removeFromFavouriteService({courseId});
+            } else {
+                // Call LIKE API
+                setLikedCourses((prev) => [...prev, courseId]);
+                await addToFavouriteService({courseId});
+            }
+        } catch (error) {
+            console.error("Failed to toggle like:", error);
+        }
     };
 
     return (
-        <div className="min-h-screen w-full flex flex-col bg-blue-900 items-stretch p-4 font-sans relative overflow-x-hidden">
+        <div
+            className="min-h-screen w-full flex flex-col bg-blue-900 items-stretch p-4 font-sans relative overflow-x-hidden">
             {/* Main Content */}
             <div className="flex flex-col items-center justify-start p-4 sm:p-6 lg:p-10 max-h-full">
                 {/* Hero Section */}
-                <div className="flex flex-col mt-17 lg:flex-row items-center justify-between text-center lg:text-left max-w-6xl mb-7 w-full">
+                <div
+                    className="flex flex-col mt-17 lg:flex-row items-center justify-between text-center lg:text-left max-w-6xl mb-7 w-full">
                     <div className="flex-1">
                         <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-white mb-4 tracking-tight">
                             Explore Our Courses
@@ -128,7 +147,9 @@ const CoursesPage: React.FC = () => {
                     <h2 className="text-2xl sm:text-3xl font-bold text-gray-200 mb-6">
                         {selectedCategory === 'All' ? 'All Courses' : `${selectedCategory} Courses`}
                     </h2>
-                    {filteredCourses.length === 0 ? (
+                    {isLoding ? (
+                        <Loader/>
+                    ) : filteredCourses.length === 0 ? (
                         <p className="text-gray-400 text-base sm:text-lg text-center">
                             No courses found. Try adjusting your search or category.
                         </p>
@@ -141,28 +162,29 @@ const CoursesPage: React.FC = () => {
                                 >
                                     <div className="relative mb-4">
                                         <img
-                                            src={course.image}
-                                            alt={course.title}
+                                            src={course.Image || "https://www.shutterstock.com/image-vector/default-ui-image-placeholder-wireframes-600nw-1037719192.jpg"}
+                                            alt={course.Course_Name}
                                             className="w-full h-40 object-cover rounded-lg"
                                         />
-                                        <div className="absolute inset-0 rounded-lg bg-gradient-to-r from-black/50 to-transparent pointer-events-none"></div>
+                                        <div
+                                            className="absolute inset-0 rounded-lg bg-gradient-to-r from-black/50 to-transparent pointer-events-none"></div>
                                         <button
-                                            onClick={() => toggleFavorite(course.id)}
+                                            onClick={() => toggleLike(course._id)}
                                             className="absolute top-2 right-2 p-1 rounded-full bg-white/80 hover:bg-white transition-colors duration-300"
-                                            aria-label={likedCourses.includes(course.id) ? 'Unlike course' : 'Like course'}
+                                            aria-label={likedCourses.includes(course._id) ? 'Unlike course' : 'Like course'}
                                         >
                                             <FaHeart
                                                 className={`w-5 h-5 ${
-                                                    likedCourses.includes(course.id) ? 'text-[#FF6B6B]' : 'text-gray-400'
+                                                    likedCourses.includes(course._id) ? 'text-[#FF6B6B]' : 'text-gray-400'
                                                 }`}
                                             />
                                         </button>
                                     </div>
-                                    <h3 className="text-lg font-semibold text-gray-700 mb-2">{course.title}</h3>
-                                    <p className="text-sm text-[#1E3A8A] mb-3">{course.description}</p>
-                                    <p className="text-sm font-semibold text-gray-700 mb-3">{course.price}</p>
+                                    <h3 className="text-lg font-semibold text-gray-700 mb-2">{course.Course_Name}</h3>
+                                    <p className="text-sm text-[#1E3A8A] mb-3">{course.Description}</p>
+                                    <p className="text-sm font-semibold text-gray-700 mb-3">₹ {course.Price}</p>
                                     <Button variant="destructive" className="rounded-lg duration-300 w-full">
-                                        <Link href={`/courses/${course.id}`} className="text-white">
+                                        <Link href={`/view/course/${course._id}`} className="text-white">
                                             Add to Cart
                                         </Link>
                                     </Button>

@@ -192,8 +192,6 @@ describe("GET /api/course/cart", () => {
     });
 
     it('should return 404 if user not found', async () => {
-        (CourseModel.findOne as jest.Mock).mockResolvedValue({_id: mockCourseId});
-
         (getVerifiedUser as jest.Mock).mockResolvedValue({
             user: null,
             errorResponse: null,
@@ -207,7 +205,7 @@ describe("GET /api/course/cart", () => {
         expect(body.message).toMatch(/user not found/i);
     });
 
-    it('should return 400 if user\'s cart is empty', async () => {
+    it("should return 400 if user's cart is empty", async () => {
         (getVerifiedUser as jest.Mock).mockResolvedValue({
             user: {
                 _id: new Types.ObjectId(),
@@ -224,7 +222,7 @@ describe("GET /api/course/cart", () => {
         expect(body.message).toMatch(/your cart is empty/i);
     });
 
-    it('should return 200 and user\'s cart data successfully', async () => {
+    it("should return 200 and user's cart data successfully", async () => {
         const userId = new Types.ObjectId().toString();
 
         (getVerifiedUser as jest.Mock).mockResolvedValue({
@@ -235,7 +233,14 @@ describe("GET /api/course/cart", () => {
             errorResponse: null,
         });
 
-        (CourseModel.find as jest.Mock).mockResolvedValue({ _id: mockCourseId });
+        (UserModel.findById as jest.Mock).mockResolvedValue({
+            _id: userId,
+            Cart: [mockCourseId]
+        });
+
+        (CourseModel.find as jest.Mock).mockResolvedValue([
+            { _id: mockCourseId, title: "Test Course" }
+        ]);
 
         const req = mockFormDataWithCourseId(mockCourseId);
         const res = await GET(req as any);
@@ -244,8 +249,9 @@ describe("GET /api/course/cart", () => {
         expect(res.status).toBe(200);
         expect(body.success).toBe(true);
         expect(body.message).toMatch(/cart fetch successfully/i);
-        expect(body.Cart).toEqual({
-            _id: mockCourseId
-        });
+        expect(Array.isArray(body.Cart)).toBe(true);
+        expect(body.Cart).toEqual([
+            { _id: mockCourseId, title: "Test Course" }
+        ]);
     });
 });

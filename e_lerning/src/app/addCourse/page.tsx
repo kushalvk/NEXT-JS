@@ -1,8 +1,10 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, {useState} from 'react';
 import Link from 'next/link';
-import { Button } from '@/components/ui/button';
+import {Button} from '@/components/ui/button';
+import toast from "react-hot-toast";
+import {addCourse} from "@/services/CourseService";
 
 const AddCoursePage: React.FC = () => {
     const [courseName, setCourseName] = useState('');
@@ -11,31 +13,52 @@ const AddCoursePage: React.FC = () => {
     const [price, setPrice] = useState('');
     const [videoFile, setVideoFile] = useState<File | null>(null);
     const [videoDescription, setVideoDescription] = useState('');
+    const [imageFile, setImageFile] = useState<File | null>(null);
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (courseName && description && department && price && videoFile && videoDescription) {
-            // In a real app, send form data to backend API (e.g., POST /api/courses)
-            const formData = new FormData();
-            formData.append('courseName', courseName);
-            formData.append('description', description);
-            formData.append('department', department);
-            formData.append('price', price);
-            formData.append('video', videoFile);
-            formData.append('videoDescription', videoDescription);
-            console.log('Course data:', Object.fromEntries(formData));
-            // Reset form after submission (optional)
+
+        const loadingToastId = toast.loading("Please wait while we finalize the details...");
+
+        try {
+            if (courseName && description && department && price && videoFile && videoDescription) {
+
+                const formData = new FormData();
+                formData.append('Course_Name', courseName);
+                formData.append('Description', description);
+                formData.append('Department', department);
+                formData.append('Price', price);
+                formData.append('Video', videoFile);
+                formData.append('Video_Description', videoDescription);
+                formData.append('Image', imageFile);
+
+                const response = await addCourse(formData);
+
+                if (response.success) {
+                    toast.success(response.message);
+                } else {
+                    toast.error("Error at adding course!");
+                }
+            } else {
+                toast.error('All the Fields are compulsory!');
+            }
+        } catch (error) {
+            toast.error(error.message);
+        } finally {
             setCourseName('');
             setDescription('');
             setDepartment('');
             setPrice('');
             setVideoFile(null);
             setVideoDescription('');
+            setImageFile(null);
+            toast.dismiss(loadingToastId);
         }
     };
 
     return (
-        <div className="min-h-screen w-full flex flex-col bg-blue-900 items-stretch p-4 font-sans relative overflow-x-hidden">
+        <div
+            className="min-h-screen w-full flex flex-col bg-blue-900 items-stretch p-4 font-sans relative overflow-x-hidden">
             {/* Main Content */}
             <div className="flex flex-col items-center justify-start p-4 sm:p-6 lg:p-10 max-h-full flex-1">
                 <div className="mt-16 w-full max-w-2xl">
@@ -43,6 +66,26 @@ const AddCoursePage: React.FC = () => {
                         Add New Course
                     </h1>
                     <form onSubmit={handleSubmit} className="space-y-6">
+                        <div>
+                            <label className="block text-white text-sm sm:text-base font-medium mb-2">
+                                Upload Course Image
+                            </label>
+                            <input
+                                type="file"
+                                accept="image/*"
+                                onChange={(e) => setImageFile(e.target.files ? e.target.files[0] : null)}
+                                className="w-full text-white bg-white/10 p-2 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-[#FF6B6B]"
+                            />
+                            {imageFile && (
+                                <div className="mt-2">
+                                    <img
+                                        src={URL.createObjectURL(imageFile)}
+                                        alt="Preview"
+                                        className="w-40 h-28 object-cover rounded-lg border border-white/40"
+                                    />
+                                </div>
+                            )}
+                        </div>
                         <div>
                             <label className="block text-white text-sm sm:text-base font-medium mb-2">
                                 Course Name

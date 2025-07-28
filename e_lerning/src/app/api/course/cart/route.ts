@@ -136,7 +136,9 @@ export async function GET(req: Request) {
             }, {status: 400});
         }
 
-        const Cart = await CourseModel.find({_id: user.Cart});
+        const latestUserCart = await UserModel.findById(user._id);
+
+        const Cart = await CourseModel.find({_id: latestUserCart.Cart});
 
         return Response.json({
             success: true,

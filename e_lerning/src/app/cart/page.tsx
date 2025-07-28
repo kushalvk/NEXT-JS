@@ -1,57 +1,130 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, {useEffect, useState} from 'react';
 import Link from 'next/link';
-import { Button } from '@/components/ui/button';
-import { FiSearch } from 'react-icons/fi';
-import { FaHeart } from 'react-icons/fa';
+import {Button} from '@/components/ui/button';
+import {FiSearch} from 'react-icons/fi';
+import {FaHeart} from 'react-icons/fa';
+import {User} from "@/models/User";
+import {loggedUser, loggedUserResponse} from "@/services/AuthService";
+import toast from "react-hot-toast";
+import {addToFavouriteService, removeFromFavouriteService} from "@/services/FavouriteService";
+import {useRouter} from "next/navigation";
+import {checkoutCourse, fetchCartCourse} from "@/services/CourseService";
+import Loader from "@/components/Loader";
 
 const CartPage: React.FC = () => {
     const [searchQuery, setSearchQuery] = useState('');
-    const [likedCourses, setLikedCourses] = useState<number[]>([]); // Track liked courses
+    const [likedCourses, setLikedCourses] = useState([]);
+    const [coursesCart, setCoursesCart] = useState<any[]>([]);
+    const [userData, setUserData] = useState<User>();
+    const [isloding, setIsLoding] = useState<boolean>(true);
+    const [checkoutCourseData, setChckoutCourseData] = useState([]);
 
-    const cartItems = [
-        {
-            id: 2,
-            title: 'Data Science with Python',
-            category: 'Data Science',
-            description: 'Master data analysis and machine learning with Python.',
-            price: '$79.99',
-            image: 'https://www.shutterstock.com/image-vector/default-ui-image-placeholder-wireframes-600nw-1037719192.jpg',
-        },
-        {
-            id: 5,
-            title: 'Cloud Computing with AWS',
-            category: 'IT & Software',
-            description: 'Explore cloud infrastructure with Amazon Web Services.',
-            price: '$69.99',
-            image: 'https://images.unsplash.com/photo-1618424181497-157f25b6ddd5?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=60',
-        },
-    ];
+    const router = useRouter();
 
-    const toggleLike = (courseId: number) => {
-        setLikedCourses((prev) =>
-            prev.includes(courseId) ? prev.filter((id) => id !== courseId) : [...prev, courseId]
-        );
-        // In a real app, sync with backend or favorites page
+    const fetchUserData = async () => {
+        try {
+            const response: loggedUserResponse = await loggedUser();
+
+            if (response.success) {
+                setUserData(response.User);
+                setLikedCourses(response.User.Favourite);
+            }
+        } catch (error) {
+            console.error(error.message);
+        }
+    }
+
+    const fetchCourseCart = async () => {
+        try {
+            const response = await fetchCartCourse();
+
+            if (response.success) {
+                setCoursesCart(response.Cart);
+            }
+        } catch (error) {
+            console.error(error.message);
+        } finally {
+            setIsLoding(false);
+        }
+    }
+
+    useEffect(() => {
+        fetchUserData();
+        fetchCourseCart();
+    }, []);
+
+    useEffect(() => {
+        const cartIds = coursesCart.map((item) => item._id);
+        setChckoutCourseData(cartIds);
+    }, [coursesCart]);
+
+    const cartItems = coursesCart;
+
+    const toggleLike = async (courseId: string) => {
+
+        if (!userData) {
+            router.push('/login');
+            toast("Please Login first", {
+                icon: '⚠️',
+            });
+            return;
+        }
+
+        const isLiked = likedCourses.includes(courseId);
+
+        try {
+            if (isLiked) {
+                // Call UNLIKE API
+                setLikedCourses((prev) => prev.filter((id) => id !== courseId));
+                await removeFromFavouriteService({courseId});
+            } else {
+                // Call LIKE API
+                setLikedCourses((prev) => [...prev, courseId]);
+                await addToFavouriteService({courseId});
+            }
+        } catch (error) {
+            console.error("Failed to toggle like:", error);
+        }
     };
 
     const filteredCartItems = cartItems.filter(
         (item) =>
-            item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            item.description.toLowerCase().includes(searchQuery.toLowerCase())
+            item.Course_Name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            item.Description.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
     const totalPrice = filteredCartItems
-        .reduce((total, item) => total + parseFloat(item.price.replace('$', '')), 0)
+        .reduce((total, item) => total + item.Price, 0)
         .toFixed(2);
 
+    const formattedPrice = new Intl.NumberFormat('en-IN', {
+        style: 'currency',
+        currency: 'INR',
+    }).format(totalPrice);
+
+    const handleCheckout = async () => {
+        try {
+            const response = await checkoutCourse({courseIds: checkoutCourseData});
+
+            if (response.success) {
+                toast.success("Courses bought successfully.");
+            }
+            setCoursesCart([]);
+        } catch (error) {
+            console.error(error.message);
+        }
+    }
+
     return (
-        <div className="min-h-screen w-full flex flex-col bg-blue-900 items-stretch p-4 font-sans relative overflow-x-hidden">
+        <div
+            className="min-h-screen w-full flex flex-col bg-blue-900 items-stretch p-4 font-sans relative overflow-x-hidden">
             {/* Main Content */}
             <div className="flex flex-col items-center justify-start p-4 sm:p-6 lg:p-10 max-h-full flex-1">
                 {/* Hero Section */}
-                <div className="flex flex-col mt-16 lg:flex-row items-center justify-between text-center lg:text-left max-w-6xl mb-5 w-full">
+                <div
+                    className="flex flex-col mt-16 lg:flex-row items-center justify-between text-center lg:text-left max-w-6xl mb-5 w-full">
                     <div className="flex-1">
                         <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-white mb-4 tracking-tight">
                             Your Cart
@@ -92,7 +165,9 @@ const CartPage: React.FC = () => {
                 {/* Cart Items List */}
                 <div className="w-full max-w-6xl mb-16 px-2 sm:px-4">
                     <h2 className="text-2xl sm:text-3xl font-bold text-gray-200 mb-6">Items in Your Cart</h2>
-                    {filteredCartItems.length === 0 ? (
+                    {isloding ? (
+                        <Loader/>
+                    ) : filteredCartItems.length === 0 ? (
                         <p className="text-gray-400 text-base sm:text-lg text-center">
                             Your cart is empty. Add some courses to get started!
                         </p>
@@ -100,47 +175,48 @@ const CartPage: React.FC = () => {
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                             {filteredCartItems.map((item) => (
                                 <div
-                                    key={item.id}
+                                    key={item._id}
                                     className="bg-white rounded-xl p-4 shadow-lg hover:shadow-xl transition transform hover:-translate-y-1 relative"
                                 >
                                     <div className="relative mb-4">
                                         <img
-                                            src={item.image}
-                                            alt={item.title}
+                                            src={item.Image || "https://www.shutterstock.com/image-vector/default-ui-image-placeholder-wireframes-600nw-1037719192.jpg"}
+                                            alt={item.Course_Name}
                                             className="w-full h-40 object-cover rounded-lg"
                                         />
-                                        <div className="absolute inset-0 rounded-lg bg-gradient-to-r from-black/50 to-transparent pointer-events-none"></div>
+                                        <div
+                                            className="absolute inset-0 rounded-lg bg-gradient-to-r from-black/50 to-transparent pointer-events-none"></div>
                                         <button
-                                            onClick={() => toggleLike(item.id)}
+                                            onClick={() => toggleLike(item._id)}
                                             className="absolute top-2 right-2 p-1 rounded-full bg-white/80 hover:bg-white transition-colors duration-300"
-                                            aria-label={likedCourses.includes(item.id) ? 'Unlike course' : 'Like course'}
+                                            aria-label={likedCourses.includes(item._id) ? 'Unlike course' : 'Like course'}
                                         >
                                             <FaHeart
                                                 className={`w-5 h-5 ${
-                                                    likedCourses.includes(item.id)
+                                                    likedCourses.includes(item._id)
                                                         ? 'text-[#FF6B6B]'
                                                         : 'text-gray-400'
                                                 }`}
                                             />
                                         </button>
                                     </div>
-                                    <h3 className="text-lg font-semibold text-gray-700 mb-2">{item.title}</h3>
-                                    <p className="text-sm text-[#1E3A8A] mb-3">{item.description}</p>
-                                    <p className="text-sm font-semibold text-gray-700 mb-3">{item.price}</p>
+                                    <h3 className="text-lg font-semibold text-gray-700 mb-2">{item.Course_Name}</h3>
+                                    <p className="text-sm text-[#1E3A8A] mb-3">{item.Description}</p>
+                                    <p className="text-sm font-semibold text-gray-700 mb-3">₹ {item.Price}</p>
                                     <div className="flex gap-2">
                                         <Button variant="destructive" className="rounded-lg duration-300 flex-1">
-                                            <Link href={`/courses/${item.id}`} className="text-white">
+                                            <Link href={`/view/course/${item._id}`} className="text-white">
                                                 View Course
                                             </Link>
                                         </Button>
                                         <Button
                                             variant="outline"
                                             className="rounded-lg duration-300 flex items-center justify-center"
-                                            onClick={() => toggleLike(item.id)}
+                                            onClick={() => toggleLike(item._id)}
                                         >
                                             <FaHeart
                                                 className={`w-5 h-5 ${
-                                                    likedCourses.includes(item.id)
+                                                    likedCourses.includes(item._id)
                                                         ? 'text-[#FF6B6B]'
                                                         : 'text-gray-400'
                                                 }`}
@@ -153,14 +229,13 @@ const CartPage: React.FC = () => {
                     )}
                     {filteredCartItems.length > 0 && (
                         <div className="mt-8 text-right">
-                            <p className="text-lg font-semibold text-white mb-4">Total: ${totalPrice}</p>
+                            <p className="text-lg font-semibold text-white mb-4">Total: {formattedPrice}</p>
                             <Button
                                 variant="destructive"
                                 className="rounded-lg duration-300 px-6 py-3 sm:text-lg"
+                                onClick={() => handleCheckout()}
                             >
-                                <Link href="/checkout" className="text-white">
-                                    Proceed to Checkout
-                                </Link>
+                                Checkout All Courses
                             </Button>
                         </div>
                     )}

@@ -55,6 +55,14 @@ export async function POST(req: Request) {
         const Video_Description = formData.get("Video_Description")?.toString() || "";
         const Price = formData.get("Price")?.toString() || "";
 
+        console.log(image);
+        console.log(video);
+        console.log(Course_Name);
+        console.log(Description);
+        console.log(Department);
+        console.log(Video_Description);
+        console.log(Price);
+
         if (!(Course_Name && Description && Department)) {
             return Response.json({
                 success: false,

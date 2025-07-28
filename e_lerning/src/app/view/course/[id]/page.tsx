@@ -238,31 +238,34 @@ const ViewCoursePage: React.FC = () => {
                             {CourseData.Description}
                         </p>
                         <div className="flex flex-col sm:flex-row justify-center lg:justify-start gap-4 mb-6">
-                            {!isBuyed && (
-                                <>
-                                    <Button variant="destructive"
-                                            className="text-white px-6 py-3 rounded-xl duration-300 font-semibold sm:text-lg"
-                                            onClick={() => handleBuyCourse(CourseData._id)}
-                                    >
-                                        Buy
-                                    </Button>
-                                    {isInCart ? (
+                            {!userUploded &&
+                                !isBuyed && (
+                                    <>
                                         <Button variant="destructive"
                                                 className="text-white px-6 py-3 rounded-xl duration-300 font-semibold sm:text-lg"
-                                                onClick={() => handleRemoveCartCourse(CourseData._id)}
+                                                onClick={() => handleBuyCourse(CourseData._id)}
                                         >
-                                            Remove from Cart
+                                            Buy
                                         </Button>
-                                    ) : (
-                                        <Button variant="destructive"
-                                                className="text-white px-6 py-3 rounded-xl duration-300 font-semibold sm:text-lg"
-                                                onClick={() => handleCartCourse(CourseData._id)}
-                                        >
-                                            Cart
-                                        </Button>
-                                    )}
-                                </>
-                            )}
+                                        {isInCart ? (
+                                            <Button variant="destructive"
+                                                    className="text-white px-6 py-3 rounded-xl duration-300 font-semibold sm:text-lg"
+                                                    onClick={() => handleRemoveCartCourse(CourseData._id)}
+                                            >
+                                                Remove from Cart
+                                            </Button>
+                                        ) : (
+                                            <Button variant="destructive"
+                                                    className="text-white px-6 py-3 rounded-xl duration-300 font-semibold sm:text-lg"
+                                                    onClick={() => handleCartCourse(CourseData._id)}
+                                            >
+                                                Cart
+                                            </Button>
+                                        )}
+                                    </>
+                                )
+                            }
+
                             <Button variant="outline"
                                     className="text-white px-6 py-3 rounded-xl duration-300 font-semibold sm:text-lg">
                                 <Link href="/courses">Back to Courses</Link>
@@ -303,7 +306,7 @@ const ViewCoursePage: React.FC = () => {
                     </div>
                 </div>
 
-                {isBuyed ? (
+                {isBuyed || userUploded ? (
                     <>
                         {!userUploded && (
                             <div className="w-full max-w-6xl mb-10 px-2 sm:px-4">
@@ -364,14 +367,14 @@ const ViewCoursePage: React.FC = () => {
                                                         />
                                                     </div>
                                                 </div>
-                                                    <div className="flex-1">
-                                                        <p className="text-gray-400 text-sm sm:text-base mb-2">{video.Description}</p>
-                                                        {!userUploded && (
-                                                            <p className={`text-sm font-semibold ${isCompleted ? 'text-green-400' : 'text-yellow-400'}`}>
-                                                                Status: {isCompleted ? 'Completed' : 'Pending'}
-                                                            </p>
-                                                        )}
-                                                    </div>
+                                                <div className="flex-1">
+                                                    <p className="text-gray-400 text-sm sm:text-base mb-2">{video.Description}</p>
+                                                    {!userUploded && (
+                                                        <p className={`text-sm font-semibold ${isCompleted ? 'text-green-400' : 'text-yellow-400'}`}>
+                                                            Status: {isCompleted ? 'Completed' : 'Pending'}
+                                                        </p>
+                                                    )}
+                                                </div>
                                             </div>
                                         );
                                     })}
