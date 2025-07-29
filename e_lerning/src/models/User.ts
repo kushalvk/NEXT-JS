@@ -67,6 +67,7 @@ export interface User extends Document {
     Buy_Course: BuyCourse[];
     Watched_Course: WatchedCourse[];
     Certificate: Certifiate[];
+    RazorpayId: string;
     createdAt: Date;
 }
 
@@ -111,6 +112,11 @@ const UserSchema: Schema<User> = new Schema({
     Buy_Course: [Buy_Course_Schema],
     Watched_Course: [Watched_Course_Schema],
     Certificate: [Certificate_Schema],
+    RazorpayId: {
+        type: String,
+        default: "",
+        required: false
+    }
 }, { timestamps: true });
 
 const UserModel = mongoose.models.users || mongoose.model<User>('users', UserSchema);

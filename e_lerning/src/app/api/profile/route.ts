@@ -38,6 +38,8 @@ export async function PUT(req: Request) {
         const Username = formData.get("Username")?.toString() || "";
         const Email = formData.get("Email")?.toString() || "";
         const Full_name = formData.get("Full_name")?.toString() || "";
+        const RazorpayId = formData.get("RazorpayId")?.toString() || "";
+        console.log(RazorpayId);
 
         const userId = user._id;
 
@@ -45,6 +47,7 @@ export async function PUT(req: Request) {
             Username,
             Email,
             Full_name,
+            RazorpayId,
         }, {new: true});
 
         return Response.json({

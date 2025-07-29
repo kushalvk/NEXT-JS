@@ -39,6 +39,7 @@ const ProfilePage: React.FC = () => {
             formData.append("Username", userData.Username);
             formData.append("Email", userData.Email);
             formData.append("Full_name", userData.Full_name);
+            formData.append("RazorpayId", userData.RazorpayId || "");
 
             const response = await updatedProfile(formData);
 
@@ -59,6 +60,7 @@ const ProfilePage: React.FC = () => {
             username: "Username",
             email: "Email",
             fullName: "Full_name",
+            razorpayId: "RazorpayId",
         };
 
         const actualKey = fieldMap[name];
@@ -128,7 +130,18 @@ const ProfilePage: React.FC = () => {
                                         className="w-full px-4 py-2 bg-white/10 text-gray-700 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B6B] transition-all duration-300 text-sm"
                                     />
                                 </div>
-                                {/*<p className="text-sm text-[#1E3A8A] mb-4">Joined: {userData.joined}</p>*/}
+                                <div className="mb-4">
+                                    <label className="text-sm font-semibold text-gray-700 block mb-1">Razorpay
+                                        ID</label>
+                                    <input
+                                        type="text"
+                                        name="razorpayId"
+                                        value={userData?.RazorpayId || ""}
+                                        onChange={handleChange}
+                                        className="w-full px-4 py-2 bg-white/10 text-gray-700 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B6B] transition-all duration-300 text-sm"
+                                    />
+                                </div>
+                                <p className="text-sm text-[#1E3A8A] mb-4">Joined: {userData?.createdAt}</p>
                                 <Button
                                     variant="destructive"
                                     className="text-white rounded-lg duration-300"
@@ -142,7 +155,9 @@ const ProfilePage: React.FC = () => {
                                 <p className="text-lg font-semibold text-gray-700 mb-2">Username: {userData?.Username}</p>
                                 <p className="text-sm text-[#1E3A8A] mb-2">Email: {userData?.Email}</p>
                                 <p className="text-sm text-[#1E3A8A] mb-2">Full Name: {userData?.Full_name}</p>
-                                <p className="text-sm text-[#1E3A8A] mb-4">Joined: {new Date(userData?.createdAt).toLocaleString()}</p>
+                                <p className="text-sm text-[#1E3A8A] mb-2">Joined: {new Date(userData?.createdAt).toLocaleString()}</p>
+                                <p className="text-sm text-[#1E3A8A] mb-4">Razorpay
+                                    ID: {userData?.RazorpayId || "Not Provided"}</p>
                                 <Button
                                     variant="outline"
                                     className="text-[#1E3A8A] border-[#1E3A8A] hover:bg-[#1E3A8A] rounded-lg duration-300"
