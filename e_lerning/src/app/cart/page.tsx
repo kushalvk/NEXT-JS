@@ -10,8 +10,10 @@ import {loggedUser, loggedUserResponse} from "@/services/AuthService";
 import toast from "react-hot-toast";
 import {addToFavouriteService, removeFromFavouriteService} from "@/services/FavouriteService";
 import {useRouter} from "next/navigation";
-import {checkoutCourse, fetchCartCourse} from "@/services/CourseService";
+import {fetchCartCourse} from "@/services/CourseService";
 import Loader from "@/components/Loader";
+import axios from "axios";
+import Script from "next/script";
 
 const CartPage: React.FC = () => {
     const [searchQuery, setSearchQuery] = useState('');
@@ -106,20 +108,74 @@ const CartPage: React.FC = () => {
 
     const handleCheckout = async () => {
         try {
-            const response = await checkoutCourse({courseIds: checkoutCourseData});
+            // Step 1: Get user token
+            const token = localStorage.getItem("token");
 
-            if (response.success) {
-                toast.success("Courses bought successfully.");
-            }
-            setCoursesCart([]);
-        } catch (error) {
-            console.error(error.message);
+            // Step 2: Call backend to create Razorpay order
+            const { data } = await axios.post(
+                "/api/razorpay", // your order creation route
+                {
+                    amount: 50000, // ₹500 in paise
+                    currency: "INR",
+                    uploaderAccountId: "acc_Qyxd4d3lkAPoVf",
+                    courseId: "6887ad6c94720a9ee9742189",
+                },
+                {
+                    headers: { Authorization: token },
+                }
+            );
+
+            const order = data.order;
+
+            // Step 3: Configure Razorpay checkout
+            const options = {
+                key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID!, // From .env
+                amount: order.amount,
+                currency: order.currency,
+                name: "VK Learning Platform",
+                description: "Course Purchase",
+                order_id: order.id,
+                handler: async function (response: any) {
+                    // Step 4: Call backend to verify payment
+                    const verifyRes = await axios.post("/api/razorpay/verify-payment", {
+                        razorpay_order_id: response.razorpay_order_id,
+                        razorpay_payment_id: response.razorpay_payment_id,
+                        razorpay_signature: response.razorpay_signature,
+                    });
+
+                    if (verifyRes.data.success) {
+                        toast.success("Payment Successful and Verified!");
+                        // Optional: Update UI, redirect, store in DB, etc.
+                    } else {
+                        toast.error("Payment verification failed.");
+                    }
+                },
+                prefill: {
+                    name: "Test User",
+                    email: "test@example.com",
+                    contact: "9999999999",
+                },
+                theme: {
+                    color: "#6366f1",
+                },
+            };
+
+            // Step 5: Open Razorpay Checkout
+            const razorpay = new window.Razorpay(options);
+            razorpay.open();
+        } catch (error: any) {
+            console.error("Payment Error:", error.message);
+            toast.error("Something went wrong.");
         }
-    }
+    };
 
     return (
         <div
             className="min-h-screen w-full flex flex-col bg-blue-900 items-stretch p-4 font-sans relative overflow-x-hidden">
+            <Script
+                src="https://checkout.razorpay.com/v1/checkout.js"
+                strategy="beforeInteractive"
+            />
             {/* Main Content */}
             <div className="flex flex-col items-center justify-start p-4 sm:p-6 lg:p-10 max-h-full flex-1">
                 {/* Hero Section */}

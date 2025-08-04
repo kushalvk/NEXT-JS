@@ -1,47 +1,64 @@
 // /pages/api/razorpay/route.ts
-import { razorpay } from '@/app/lib/razorpay';
-import type { NextApiRequest, NextApiResponse } from 'next';
+import {razorpay} from '@/app/lib/razorpay';
 
-export async function POST(req: NextApiRequest, res: NextApiResponse) {
+export async function POST(req: Request) {
 
-    const { amount, currency, uploaderAccountId, courseId } = await req.json();
+    const {amount, currency, uploaderAccountId, courseId} = await req.json();
 
     if (!amount) {
-        return new Response(JSON.stringify({ error: 'Amount is required' }), {
+        return new Response(JSON.stringify({error: 'Amount is required'}), {
             status: 400,
         });
     }
 
     try {
+        const shortReceipt = `rcpt_${courseId.slice(-4)}_${Date.now().toString().slice(-6)}`;
+
         const order = await razorpay.orders.create({
-            amount: amount * 100, // convert to paise
+            amount: amount * 100,
             currency: currency || 'INR',
-            receipt: `receipt_${courseId}_${Date.now()}`,
+            receipt: shortReceipt, // ✅ Fixed receipt length
             transfers: [
                 {
-                    account: uploaderAccountId, // Razorpay sub-account ID
-                    amount: Math.floor(amount * 100 * 0.95), // 95% to uploader
-                    currency: currency || 'INR',
+                    account: "acc_Qyxd4d3lkAPoVf", // this is your account ID
+                    amount: 5000, // in paise (₹50)
+                    currency: "INR",
                     notes: {
-                        courseId,
-                        role: 'Uploader',
-                    },
-                },
-                {
-                    account: "acc_Qyxd4d3lkAPoVf", // Your commission
-                    amount: Math.floor(amount * 100 * 0.05),
-                    currency: currency || 'INR',
-                    notes: {
-                        courseId,
-                        role: 'Platform Commission',
+                        purpose: "Payout to vendor",
                     },
                 },
             ],
+            // transfers: [
+            //     {
+            //         account: uploaderAccountId,
+            //         amount: Math.floor(amount * 100 * 0.95),
+            //         currency: currency || 'INR',
+            //         notes: {
+            //             courseId,
+            //             role: 'Uploader',
+            //         },
+            //     },
+            //     {
+            //         account: process.env.MY_ACCOUNT_ID,
+            //         amount: Math.floor(amount * 100 * 0.05),
+            //         currency: currency || 'INR',
+            //         notes: {
+            //             courseId,
+            //             role: 'Platform Commission',
+            //         },
+            //     },
+            // ],
         });
 
-        res.status(200).json({ order });
+        return Response.json({
+            success: true,
+            order
+        }, {status: 200});
     } catch (error: any) {
         console.error(error);
-        res.status(500).json({ error: 'Order creation failed' });
+        return Response.json({
+            success: false,
+            error: 'Order creation failed'
+        }, {status: 500});
     }
 }
