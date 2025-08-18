@@ -115,10 +115,10 @@ const CartPage: React.FC = () => {
             const { data } = await axios.post(
                 "/api/razorpay", // your order creation route
                 {
-                    amount: 50000, // ₹500 in paise
+                    amount: 10, // ₹500 in paise
                     currency: "INR",
                     uploaderAccountId: "acc_Qyxd4d3lkAPoVf",
-                    courseId: "6887ad6c94720a9ee9742189",
+                    courseId: checkoutCourseData,
                 },
                 {
                     headers: { Authorization: token },
@@ -163,6 +163,11 @@ const CartPage: React.FC = () => {
             // Step 5: Open Razorpay Checkout
             const razorpay = new window.Razorpay(options);
             razorpay.open();
+
+            if (razorpay.razorpay_payment_id && razorpay.razorpay_order_id && razorpay.razorpay_signature) {
+                // call backend API
+                toast.success("Payment Successful and Verified!");
+            }
         } catch (error: any) {
             console.error("Payment Error:", error.message);
             toast.error("Something went wrong.");

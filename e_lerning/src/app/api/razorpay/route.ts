@@ -21,7 +21,7 @@ export async function POST(req: Request) {
             transfers: [
                 {
                     account: "acc_Qyxd4d3lkAPoVf", // this is your account ID
-                    amount: 5000, // in paise (₹50)
+                    amount: 1000, // in paise (₹50)
                     currency: "INR",
                     notes: {
                         purpose: "Payout to vendor",
