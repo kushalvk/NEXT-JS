@@ -10,7 +10,7 @@ import {loggedUser, loggedUserResponse} from "@/services/AuthService";
 import toast from "react-hot-toast";
 import {addToFavouriteService, removeFromFavouriteService} from "@/services/FavouriteService";
 import {useRouter} from "next/navigation";
-import {fetchCartCourse} from "@/services/CourseService";
+import {checkoutCourse, fetchCartCourse} from "@/services/CourseService";
 import Loader from "@/components/Loader";
 import axios from "axios";
 import Script from "next/script";
@@ -108,17 +108,15 @@ const CartPage: React.FC = () => {
 
     const handleCheckout = async () => {
         try {
-            // Step 1: Get user token
             const token = localStorage.getItem("token");
 
-            // Step 2: Call backend to create Razorpay order
             const { data } = await axios.post(
-                "/api/razorpay", // your order creation route
+                "/api/razorpay",
                 {
-                    amount: 10, // ₹500 in paise
+                    amount: 10,
                     currency: "INR",
                     uploaderAccountId: "acc_Qyxd4d3lkAPoVf",
-                    courseId: checkoutCourseData,
+                    courseIds: checkoutCourseData, // ✅ pass array here
                 },
                 {
                     headers: { Authorization: token },
@@ -127,16 +125,14 @@ const CartPage: React.FC = () => {
 
             const order = data.order;
 
-            // Step 3: Configure Razorpay checkout
             const options = {
-                key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID!, // From .env
+                key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID!,
                 amount: order.amount,
                 currency: order.currency,
                 name: "VK Learning Platform",
                 description: "Course Purchase",
                 order_id: order.id,
                 handler: async function (response: any) {
-                    // Step 4: Call backend to verify payment
                     const verifyRes = await axios.post("/api/razorpay/verify-payment", {
                         razorpay_order_id: response.razorpay_order_id,
                         razorpay_payment_id: response.razorpay_payment_id,
@@ -144,30 +140,23 @@ const CartPage: React.FC = () => {
                     });
 
                     if (verifyRes.data.success) {
-                        toast.success("Payment Successful and Verified!");
-                        // Optional: Update UI, redirect, store in DB, etc.
+                        // ✅ Call checkoutCourse after verification
+                        const checkoutRes = await checkoutCourse({ courseIds: checkoutCourseData });
+
+                        if (checkoutRes.success) {
+                            toast.success("Payment Successful and Courses Added!");
+                        } else {
+                            toast.error(checkoutRes.message);
+                        }
                     } else {
                         toast.error("Payment verification failed.");
                     }
                 },
-                prefill: {
-                    name: "Test User",
-                    email: "test@example.com",
-                    contact: "9999999999",
-                },
-                theme: {
-                    color: "#6366f1",
-                },
+                theme: { color: "#6366f1" },
             };
 
-            // Step 5: Open Razorpay Checkout
             const razorpay = new window.Razorpay(options);
             razorpay.open();
-
-            if (razorpay.razorpay_payment_id && razorpay.razorpay_order_id && razorpay.razorpay_signature) {
-                // call backend API
-                toast.success("Payment Successful and Verified!");
-            }
         } catch (error: any) {
             console.error("Payment Error:", error.message);
             toast.error("Something went wrong.");

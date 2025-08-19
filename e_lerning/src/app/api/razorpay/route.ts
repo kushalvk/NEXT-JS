@@ -1,34 +1,49 @@
-// /pages/api/razorpay/route.ts
-import {razorpay} from '@/app/lib/razorpay';
+import Razorpay from "razorpay";
+
+const razorpay = new Razorpay({
+    key_id: process.env.RAZORPAY_KEY_ID!,
+    key_secret: process.env.RAZORPAY_KEY_SECRET!,
+});
 
 export async function POST(req: Request) {
-
-    const {amount, currency, uploaderAccountId, courseId} = await req.json();
-
-    if (!amount) {
-        return new Response(JSON.stringify({error: 'Amount is required'}), {
-            status: 400,
-        });
-    }
-
     try {
-        const shortReceipt = `rcpt_${courseId.slice(-4)}_${Date.now().toString().slice(-6)}`;
+        const { amount, currency, uploaderAccountId, courseIds } = await req.json();
 
-        const order = await razorpay.orders.create({
-            amount: amount * 100,
-            currency: currency || 'INR',
-            receipt: shortReceipt, // ✅ Fixed receipt length
-            transfers: [
-                {
-                    account: "acc_Qyxd4d3lkAPoVf", // this is your account ID
-                    amount: 1000, // in paise (₹50)
-                    currency: "INR",
-                    notes: {
-                        purpose: "Payout to vendor",
-                    },
-                },
-            ],
-            // transfers: [
+        if (!amount || !currency || !courseIds || courseIds.length === 0) {
+            return Response.json({
+                success: false,
+                message: "Amount, currency and at least one courseId required",
+            }, { status: 400 });
+        }
+
+        // Razorpay order params
+        const options = {
+            amount: amount * 100, // amount in paise
+            currency: currency,
+            receipt: `rcpt_${Date.now()}`, // ✅ <= 40 chars
+            notes: {
+                courses: Array.isArray(courseIds) ? courseIds.join(",") : courseIds,
+                uploaderAccountId,
+            },
+        };
+
+        const order = await razorpay.orders.create(options);
+
+        return Response.json({
+            success: true,
+            order,
+        }, { status: 200 });
+    } catch (err: any) {
+        console.error("Error creating Razorpay order:", err);
+        return Response.json({
+            success: false,
+            message: "Failed to create order",
+            error: err.message,
+        }, { status: 500 });
+    }
+}
+
+// transfers: [
             //     {
             //         account: uploaderAccountId,
             //         amount: Math.floor(amount * 100 * 0.95),
@@ -48,17 +63,3 @@ export async function POST(req: Request) {
             //         },
             //     },
             // ],
-        });
-
-        return Response.json({
-            success: true,
-            order
-        }, {status: 200});
-    } catch (error: any) {
-        console.error(error);
-        return Response.json({
-            success: false,
-            error: 'Order creation failed'
-        }, {status: 500});
-    }
-}

@@ -1,55 +1,67 @@
 import dbConnect from "@/app/lib/dbConnect";
 import {getVerifiedUser} from "@/utils/verifyRequest";
 import UserModel from "@/models/User";
-import mongoose from "mongoose";
+import CourseModel from "@/models/Course";
 
 export async function POST(req: Request) {
     await dbConnect();
 
     try {
         const { courseIds } = await req.json();
-        console.log(courseIds);
 
-        if (!Array.isArray(courseIds) || courseIds.length === 0) {
+        if (!courseIds || courseIds.length === 0) {
             return Response.json({
                 success: false,
-                message: 'Invalid data'
+                message: "At least one Course Id is required",
             }, { status: 400 });
         }
 
-        const {user, errorResponse} = await getVerifiedUser(req);
+        const { user, errorResponse } = await getVerifiedUser(req);
         if (errorResponse) return errorResponse;
 
-        const objectIds = courseIds
-            .filter(id => id && mongoose.Types.ObjectId.isValid(id))
-            .map(id => ({
-                courseId: new mongoose.Types.ObjectId(id),
-                buyDate: new Date(),
-            }));
+        const courses = await CourseModel.find({ _id: { $in: courseIds } });
+        if (courses.length !== courseIds.length) {
+            return Response.json({
+                success: false,
+                message: "One or more Course IDs are invalid",
+            }, { status: 404 });
+        }
 
-        const updatedUser = await UserModel.findByIdAndUpdate(
-            user._id,
+        const alreadyBought = user?.Buy_Course?.map(c => c.courseId.toString()) || [];
+        const newCourseIds = courseIds.filter(id => !alreadyBought.includes(id));
+
+        if (newCourseIds.length === 0) {
+            return Response.json({
+                success: false,
+                message: "You already bought all selected courses",
+            }, { status: 409 });
+        }
+
+        const newBuyCourses = newCourseIds.map(id => ({
+            courseId: id,
+            buyDate: new Date(),
+        }));
+
+        const updatedUser = await UserModel.findOneAndUpdate(
+            { _id: user._id },
             {
-                $addToSet: {
-                    Buy_Course: { $each: objectIds },
-                },
-                $pull: {
-                    Cart: { $in: courseIds.map(id => new mongoose.Types.ObjectId(id)) },
-                }
+                $push: { Buy_Course: { $each: newBuyCourses } },
+                $pull: { Cart: { $in: newCourseIds } },
             },
-            {new: true},
+            { new: true }
         );
 
         return Response.json({
             success: true,
-            message: "Course buy successfully",
+            message: `You successfully bought ${newCourseIds.length} course(s)`,
+            boughtCourses: newCourseIds,
             User: updatedUser,
-        }, {status: 200});
+        }, { status: 200 });
     } catch (error) {
-        console.error("Error at checkout ", error);
+        console.error("Error at Buy Multiple Courses ", error);
         return Response.json({
             success: false,
-            message: "Error at checkout ",
-        }, {status: 400});
+            message: "Error at Buy Multiple Courses",
+        }, { status: 500 });
     }
 }
