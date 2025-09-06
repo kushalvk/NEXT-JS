@@ -31,8 +31,8 @@ const Login: React.FC = () => {
                 toast.error(response.message);
                 toast.dismiss(loadingToastId);
             }
-        } catch (error) {
-            toast.error('Something went wrong. Please try again.'+ error);
+        } catch (error: any) {
+            toast.error("Something went wrong. Please try again. " + (error?.message || ""));
             toast.dismiss(loadingToastId);
         }
     };
@@ -49,7 +49,7 @@ const Login: React.FC = () => {
                 <div
                     className="bg-white rounded-3xl shadow-2xl p-10 w-full max-w-md transform transition-all duration-500 hover:scale-105">
                     <h2 className="text-4xl font-extrabold text-center text-indigo-700 mb-8 animate-fade-in">
-                        Let&apos;s get back to Learning
+                        {"Let's get back to Learning"}
                     </h2>
                     <form onSubmit={handleSubmit} className="space-y-6">
                         <div>
