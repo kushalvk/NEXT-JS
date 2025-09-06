@@ -59,68 +59,109 @@ describe('GET /api/profile', () => {
     });
 });
 
-describe('PUT /api/profile', () => {
-    it('should update user and return updated user info', async () => {
-        const mockUser = {_id: 'user123'};
-        const mockUpdatedUser = {
-            _id: 'user123',
-            Username: 'newuser',
-            Email: 'new@example.com',
-            Full_name: 'New Name'
-        };
+describe("PUT /api/updateProfile", () => {
+    const mockUser = {
+        _id: "user123",
+        Username: "oldUser",
+        Email: "old@example.com",
+        Full_name: "Old Name",
+        RazorpayId: "old-razorpay",
+    };
 
+    const updatedUser = {
+        _id: "user123",
+        Username: "newUser",
+        Email: "new@example.com",
+        Full_name: "New Name",
+        RazorpayId: "new-razorpay",
+    };
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+    });
+
+    it("should return 401 if user is not verified", async () => {
         (getVerifiedUser as jest.Mock).mockResolvedValue({
-            user: mockUser,
+            user: null,
+            errorResponse: new Response(
+                JSON.stringify({ success: false, message: "Unauthorized" }),
+                { status: 401 }
+            ),
+        });
+
+        const formData = new FormData();
+        formData.append("Username", "newUser");
+
+        const req = {} as NextRequest;
+
+        const res = await PUT(req);
+        const json = await res.json();
+
+        expect(res.status).toBe(401);
+        expect(json.success).toBe(false);
+        expect(json.message).toBe("Unauthorized");
+    });
+
+    it("should update user profile successfully", async () => {
+        (getVerifiedUser as jest.Mock).mockResolvedValue({
+            user: { _id: "user123" },
             errorResponse: null,
         });
 
-        (UserModel.findByIdAndUpdate as jest.Mock).mockResolvedValue(mockUpdatedUser);
+        (UserModel.findByIdAndUpdate as jest.Mock).mockResolvedValue(updatedUser);
 
-        const req = createMockFormRequest({
-            Username: 'newuser',
-            Email: 'new@example.com',
-            Full_name: 'New Name'
+        const formData = new FormData();
+        formData.append("Username", "newUser");
+        formData.append("Email", "new@example.com");
+        formData.append("Full_name", "New Name");
+        formData.append("RazorpayId", "new-razorpay");
+
+        // ✅ use native Request with body = formData
+        const req = new Request("http://localhost/api/updateProfile", {
+            method: "PUT",
+            body: formData,
         });
 
-        const response = await PUT(req);
-        const body = await response.json();
+        const res = await PUT(req);
+        const json = await res.json();
+
+        expect(res.status).toBe(200);
+        expect(json.success).toBe(true);
+        expect(json.message).toBe("User Updated");
+        expect(json.user).toEqual(updatedUser);
 
         expect(UserModel.findByIdAndUpdate).toHaveBeenCalledWith(
-            mockUser._id,
+            "user123",
             {
-                Username: 'newuser',
-                Email: 'new@example.com',
-                Full_name: 'New Name'
+                Username: "newUser",
+                Email: "new@example.com",
+                Full_name: "New Name",
+                RazorpayId: "new-razorpay",
             },
-            {new: true}
+            { new: true }
         );
-
-        expect(response.status).toBe(200);
-        expect(body).toEqual({
-            success: true,
-            message: 'User Updated',
-            user: mockUpdatedUser
-        });
     });
 
-    it('should return errorResponse if user is not verified', async () => {
-        const mockErrorResponse = new Response(
-            JSON.stringify({success: false, message: 'Unauthorized'}),
-            {status: 401}
+    it("should return 500 on internal server error", async () => {
+        (getVerifiedUser as jest.Mock).mockResolvedValue({
+            user: { _id: "user123" },
+            errorResponse: null,
+        });
+
+        (UserModel.findByIdAndUpdate as jest.Mock).mockRejectedValue(
+            new Error("DB error")
         );
 
-        (getVerifiedUser as jest.Mock).mockResolvedValue({
-            user: null,
-            errorResponse: mockErrorResponse,
-        });
+        const formData = new FormData();
+        formData.append("Username", "newUser");
 
-        const req = createMockFormRequest({
-            Username: 'failuser',
-            Email: 'fail@example.com',
-            Full_name: 'Fail Name'
-        });
+        const req = {} as NextRequest;
 
-        const response = await PUT(req);
-        expect(response.status).toBe(401);
+        const res = await PUT(req);
+        const json = await res.json();
+
+        expect(res.status).toBe(500);
+        expect(json.success).toBe(false);
+        expect(json.message).toBe("Error at updating Profile");
     });
 });

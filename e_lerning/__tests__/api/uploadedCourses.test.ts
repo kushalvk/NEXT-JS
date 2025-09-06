@@ -2,6 +2,7 @@ import { GET } from '@/app/api/uploadcourse/route';
 import { getVerifiedUser } from '@/utils/verifyRequest';
 import UserModel from '@/models/User';
 import CourseModel from '@/models/Course';
+import {NextRequest} from "next/server";
 
 jest.mock('@/app/lib/dbConnect');
 jest.mock('@/utils/verifyRequest');
@@ -29,7 +30,7 @@ describe('GET /api/course/uploaded', () => {
             errorResponse: new Response(JSON.stringify({ success: false, message: 'Unauthorized' }), { status: 401 }),
         });
 
-        const req = new Request('http://localhost/api/course/uploaded');
+        const req = {} as NextRequest;
         const res = await GET(req);
         const json = await res.json();
 
@@ -47,7 +48,7 @@ describe('GET /api/course/uploaded', () => {
         (UserModel.findById as jest.Mock).mockResolvedValue(mockUser);
         (CourseModel.find as jest.Mock).mockResolvedValue(mockCourses);
 
-        const req = new Request('http://localhost/api/course/uploaded');
+        const req = {} as NextRequest;
         const res = await GET(req);
         const json = await res.json();
 
@@ -67,7 +68,7 @@ describe('GET /api/course/uploaded', () => {
 
         (UserModel.findById as jest.Mock).mockRejectedValue(new Error('DB error'));
 
-        const req = new Request('http://localhost/api/course/uploaded');
+        const req = {} as NextRequest;
         const res = await GET(req);
         const json = await res.json();
 
