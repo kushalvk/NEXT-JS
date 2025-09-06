@@ -16,7 +16,7 @@ import Loader from "@/components/Loader";
 const MyCoursesPage: React.FC = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [likedCourses, setLikedCourses] = useState<string[]>([]);
-    const [myCourses, setMyCourses] = useState<any>([]);
+    const [myCourses, setMyCourses] = useState([]);
     const [userData, setUserData] = useState<User>();
     const [isLoading, setIsLoading] = useState<boolean>(true);
 
@@ -39,7 +39,7 @@ const MyCoursesPage: React.FC = () => {
 
             if (response.success) {
                 setMyCourses(response.User.Buy_Course);
-                const favIds = response.User.Favourite.map((fav: any) => fav.toString());
+                const favIds = response.User.Favourite.map((fav) => fav.toString());
                 setLikedCourses(favIds);
             }
         } catch (error) {

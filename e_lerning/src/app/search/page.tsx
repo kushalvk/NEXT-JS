@@ -44,7 +44,7 @@ const SearchCoursesPage: React.FC = () => {
 
                 if (response.success) {
                     setUserData(response.User);
-                    const favIds = response.User.Favourite.map((fav: any) => fav.toString()); // convert ObjectId to string
+                    const favIds = response.User.Favourite.map((fav) => fav.toString()); // convert ObjectId to string
                     setLikedCourses(favIds);
                 }
             } catch (error) {

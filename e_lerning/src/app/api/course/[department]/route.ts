@@ -1,38 +1,37 @@
 import dbConnect from "@/app/lib/dbConnect";
 import CourseModel from "@/models/Course";
 
-export async function GET(req: Request, {params}: { params: { department: string } }) {
+export async function GET(req: Request, { params }: { params: any }) {
     await dbConnect();
 
+    const department = params.department;
+
+    if (!department) {
+        return new Response(
+            JSON.stringify({ success: false, message: "Department required" }),
+            { status: 400 }
+        );
+    }
+
     try {
-        const department = params.department;
+        const courses = await CourseModel.find({ Department: department });
 
-        if (!department) {
-            return Response.json({
-                success: false,
-                message: "Department required",
-            }, {status: 400});
+        if (!courses || courses.length === 0) {
+            return new Response(
+                JSON.stringify({ success: false, message: "No courses found" }),
+                { status: 404 }
+            );
         }
 
-        const course = await CourseModel.find({Department: department});
-
-        if (!course || course.length === 0) {
-            return Response.json({
-                success: false,
-                message: "No courses found for this department",
-            }, {status: 404});
-        }
-
-        return Response.json({
-            success: true,
-            message: "Courses fetched successfully",
-            course
-        })
+        return new Response(
+            JSON.stringify({ success: true, message: "Courses fetched", courses }),
+            { status: 200 }
+        );
     } catch (error) {
-        console.error("Error to fetching course by department", error);
-        return Response.json({
-            success: false,
-            message: "Server error while fetching courses",
-        }, {status: 500});
+        console.error(error);
+        return new Response(
+            JSON.stringify({ success: false, message: "Server error" }),
+            { status: 500 }
+        );
     }
 }

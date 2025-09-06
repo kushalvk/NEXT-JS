@@ -14,9 +14,9 @@ import Loader from "@/components/Loader";
 
 const FavoritePage: React.FC = () => {
     const [searchQuery, setSearchQuery] = useState('');
-    const [likedCourses, setLikedCourses] = useState<any>([]);
+    const [likedCourses, setLikedCourses] = useState([]);
     const [userData, setUserData] = useState<User>();
-    const [favouriteCourses, setFavouriteCourses] = useState<any>([]);
+    const [favouriteCourses, setFavouriteCourses] = useState([]);
     const [isLoding, setIsLoding] = useState<boolean>(true);
 
     const router = useRouter();

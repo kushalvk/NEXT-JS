@@ -18,7 +18,7 @@ import Loader from "@/components/Loader";
 const CoursesPage: React.FC = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedCategory, setSelectedCategory] = useState('All');
-    const [likedCourses, setLikedCourses] = useState<any[]>([]);
+    const [likedCourses, setLikedCourses] = useState<[]>([]);
     const [courses, setCourses] = useState<Course[]>([]);
     const [userData, setUserData] = useState<User>();
     const [isLoding, setIsLoding] = useState(true);

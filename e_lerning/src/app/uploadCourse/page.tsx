@@ -15,9 +15,9 @@ import Loader from "@/components/Loader";
 
 const UploadCoursePage: React.FC = () => {
     const [searchQuery, setSearchQuery] = useState('');
-    const [likedCourses, setLikedCourses] = useState<any[]>([]);
+    const [likedCourses, setLikedCourses] = useState<[]>([]);
     const [userData, setUserData] = useState<User>();
-    const [uplodedCourses, setUplodedCourses] = useState<any>([]);
+    const [uplodedCourses, setUplodedCourses] = useState([]);
     const [isLoading, setIsLoading] = useState<boolean>(true);
 
     const router = useRouter();

@@ -151,7 +151,7 @@ const ViewCoursePage: React.FC = () => {
     let courseProgress = 0;
     if (userData && CourseData) {
         const watched = userData?.Watched_Course?.find(
-            (entry: any) => entry.courseId === id || entry.courseId?._id === id
+            (entry) => entry.courseId === id || entry.courseId?._id === id
         );
         if (watched) {
             const completedVideos = watched.completedVideos?.length || 0;

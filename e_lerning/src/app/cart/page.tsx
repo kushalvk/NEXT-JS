@@ -18,7 +18,7 @@ import Script from "next/script";
 const CartPage: React.FC = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [likedCourses, setLikedCourses] = useState([]);
-    const [coursesCart, setCoursesCart] = useState<any[]>([]);
+    const [coursesCart, setCoursesCart] = useState<[]>([]);
     const [userData, setUserData] = useState<User>();
     const [isloding, setIsLoding] = useState<boolean>(true);
     const [checkoutCourseData, setChckoutCourseData] = useState([]);
@@ -132,7 +132,7 @@ const CartPage: React.FC = () => {
                 name: "VK Learning Platform",
                 description: "Course Purchase",
                 order_id: order.id,
-                handler: async function (response: any) {
+                handler: async function (response) {
                     const verifyRes = await axios.post("/api/razorpay/verify-payment", {
                         razorpay_order_id: response.razorpay_order_id,
                         razorpay_payment_id: response.razorpay_payment_id,
@@ -157,8 +157,8 @@ const CartPage: React.FC = () => {
 
             const razorpay = new window.Razorpay(options);
             razorpay.open();
-        } catch (error) {
-            console.error("Payment Error:" + error);
+        } catch (error2) {
+            console.error("Payment Error:" + error2);
             toast.error("Something went wrong.");
         }
     };

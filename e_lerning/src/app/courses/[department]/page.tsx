@@ -15,7 +15,7 @@ import {CourseResponse} from "@/utils/Responses";
 import Loader from "@/components/Loader";
 
 const CoursesByDepartmentPage: React.FC = () => {
-    const [likedCourses, setLikedCourses] = useState<any[]>([]);
+    const [likedCourses, setLikedCourses] = useState<[]>([]);
     const [userData, setUserData] = useState<User>();
     const [coursesDepartment, setCoursesDepartment] = useState<Course[]>([]);
     const [isLoading, setIsLoading] = useState(true);
