@@ -5,7 +5,7 @@ import Link from 'next/link';
 import {signup} from '@/services/AuthService';
 import toast from 'react-hot-toast';
 import {useRouter} from "next/navigation";
-import CommonApiResponse from "@/utils/CommonApiResponse";
+import { CommonApiResponse } from "@/utils/Responses";
 
 export interface SignupData {
     Username: string;
@@ -59,7 +59,7 @@ const SignUp: React.FC = () => {
                 toast.dismiss(loadingToastId);
             }
         } catch (error) {
-            toast.error('Something went wrong. Please try again.');
+            toast.error('Something went wrong. Please try again.' + error);
             toast.dismiss(loadingToastId);
         }
     };

@@ -31,7 +31,7 @@ const FavoritePage: React.FC = () => {
                 }
             }
         } catch (error) {
-            console.error(error.message);
+            console.error(error);
         }
     };
 
@@ -43,7 +43,7 @@ const FavoritePage: React.FC = () => {
                 setFavouriteCourses(response.User.Favourite);
             }
         } catch (error) {
-            console.error(error.message);
+            console.error(error);
         } finally {
             setIsLoding(false);
         }

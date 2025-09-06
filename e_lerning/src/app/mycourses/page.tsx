@@ -29,7 +29,7 @@ const MyCoursesPage: React.FC = () => {
                 setUserData(response.User);
             }
         } catch (error) {
-            console.error(error.message);
+            console.error(error);
         }
     };
 
@@ -43,7 +43,7 @@ const MyCoursesPage: React.FC = () => {
                 setLikedCourses(favIds);
             }
         } catch (error) {
-            console.error(error.message);
+            console.error(error);
         } finally {
             setIsLoading(false);
         }

@@ -1,4 +1,4 @@
-import {Course, Video} from "@/models/Course";
+import {Video} from "@/models/Course";
 import {User} from "@/models/User";
 import {Types} from "mongoose";
 

@@ -14,7 +14,7 @@ export const signup = async (data: SignupData): Promise<CommonApiResponse> => {
     try {
         const response = await axios.post<CommonApiResponse>('/api/sign-up', data);
         return response.data;
-    } catch (error: any) {
+    } catch (error) {
         Error(error);
     }
 }

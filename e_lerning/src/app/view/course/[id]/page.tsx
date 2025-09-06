@@ -50,7 +50,7 @@ const ViewCoursePage: React.FC = () => {
                 }
             }
         } catch (error) {
-            console.error(error.message);
+            console.error(error);
         }
     };
 
@@ -62,7 +62,7 @@ const ViewCoursePage: React.FC = () => {
                     setCourseData(response.course);
                 }
             } catch (error) {
-                console.error(error.message);
+                console.error(error);
             }
         };
 
@@ -183,7 +183,7 @@ const ViewCoursePage: React.FC = () => {
             }
 
         } catch (error) {
-            toast.error(error.message);
+            toast.error("" + error);
         }
     };
 
@@ -205,7 +205,7 @@ const ViewCoursePage: React.FC = () => {
                 setIsInCart(true);
             }
         } catch (error) {
-            toast.error(error.message);
+            toast.error("" + error);
         }
     }
 
@@ -220,7 +220,7 @@ const ViewCoursePage: React.FC = () => {
                 toast.error(response.message);
             }
         } catch (error) {
-            toast.error(error.message);
+            toast.error("" + error);
         }
     }
 

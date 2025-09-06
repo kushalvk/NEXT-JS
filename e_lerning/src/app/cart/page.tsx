@@ -34,7 +34,7 @@ const CartPage: React.FC = () => {
                 setLikedCourses(response.User.Favourite);
             }
         } catch (error) {
-            console.error(error.message);
+            console.error(error);
         }
     }
 
@@ -46,7 +46,7 @@ const CartPage: React.FC = () => {
                 setCoursesCart(response.Cart);
             }
         } catch (error) {
-            console.error(error.message);
+            console.error(error);
         } finally {
             setIsLoding(false);
         }
@@ -157,8 +157,8 @@ const CartPage: React.FC = () => {
 
             const razorpay = new window.Razorpay(options);
             razorpay.open();
-        } catch (error: any) {
-            console.error("Payment Error:", error.message);
+        } catch (error) {
+            console.error("Payment Error:" + error);
             toast.error("Something went wrong.");
         }
     };

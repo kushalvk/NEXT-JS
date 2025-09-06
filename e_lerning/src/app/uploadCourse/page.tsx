@@ -30,7 +30,7 @@ const UploadCoursePage: React.FC = () => {
                 setLikedCourses(response.User.Favourite);
             }
         } catch (error) {
-            console.error(error.message);
+            console.error(error);
         }
     };
 
@@ -42,7 +42,7 @@ const UploadCoursePage: React.FC = () => {
                 setUplodedCourses(response.Course);
             }
         } catch (error) {
-            console.error(error.message);
+            console.error(error);
         } finally {
             setIsLoading(false);
         }

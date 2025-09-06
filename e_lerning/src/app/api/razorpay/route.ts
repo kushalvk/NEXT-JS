@@ -33,12 +33,12 @@ export async function POST(req: Request) {
             success: true,
             order,
         }, { status: 200 });
-    } catch (err: any) {
+    } catch (err) {
         console.error("Error creating Razorpay order:", err);
         return Response.json({
             success: false,
             message: "Failed to create order",
-            error: err.message,
+            error: err,
         }, { status: 500 });
     }
 }

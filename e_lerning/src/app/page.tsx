@@ -92,7 +92,7 @@ const Home: React.FC = () => {
                 <div className="w-full max-w-4xl mb-20 text-center px-2">
                     <h2 className="text-2xl font-bold text-gray-200 mb-4">What Our Students Say</h2>
                     <blockquote className="italic text-[#F5F5F5]/80 max-w-xl mx-auto text-lg">
-                        "This platform changed the way I learn. The interactive lessons and expert teachers made even the hardest topics easy!"
+                        &quot;This platform changed the way I learn. The interactive lessons and expert teachers made even the hardest topics easy!&quot;
                     </blockquote>
                     <p className="text-indigo-300 mt-2 font-semibold">– Kushal Vaghela, Full Stack Developer</p>
                 </div>

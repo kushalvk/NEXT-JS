@@ -33,7 +33,7 @@ const SearchCoursesPage: React.FC = () => {
                     setCourses(response.course);
                 }
             } catch (error) {
-                console.error(error.message);
+                console.error(error);
             } finally {
                 setIsLoading(false);
             }
@@ -48,7 +48,7 @@ const SearchCoursesPage: React.FC = () => {
                     setLikedCourses(favIds);
                 }
             } catch (error) {
-                console.error(error.message);
+                console.error(error);
             }
         }
         userdata();

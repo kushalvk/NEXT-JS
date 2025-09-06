@@ -34,7 +34,7 @@ const CoursesByDepartmentPage: React.FC = () => {
                 setLikedCourses(response.User.Favourite);
             }
         } catch (error) {
-            console.error(error.message);
+            console.error(error);
         }
     }
 
@@ -46,7 +46,7 @@ const CoursesByDepartmentPage: React.FC = () => {
                 setCoursesDepartment(response.course)
             }
         } catch (error) {
-            console.error(error.message);
+            console.error(error);
         } finally {
             setIsLoading(false);
         }
