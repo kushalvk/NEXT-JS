@@ -15,6 +15,7 @@ import {addToFavouriteService, removeFromFavouriteService} from "@/services/Favo
 import {completeVideoApi} from '@/services/WatchedService';
 import {Dialog, DialogContent, DialogHeader, DialogTitle} from "@/components/ui/dialog";
 import {useAuth} from "@/context/AuthContext";
+import Image from "next/image";
 
 const ViewCoursePage: React.FC = () => {
     const {id} = useParams();
@@ -273,10 +274,12 @@ const ViewCoursePage: React.FC = () => {
                         </div>
                     </div>
                     <div className="relative mt-6 lg:mt-0 lg:ml-6">
-                        <img
+                        <Image
                             src={CourseData.Image ||
                                 "https://www.shutterstock.com/image-vector/default-ui-image-placeholder-wireframes-600nw-1037719192.jpg"}
                             alt={CourseData.Course_Name}
+                            width={400}
+                            height={400}
                             className="w-full max-w-md h-48 sm:h-64 object-cover rounded-lg"
                         />
                         <div

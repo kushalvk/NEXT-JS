@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { useRouter } from 'next/navigation';
 import { HiMenu, HiX } from 'react-icons/hi';
 import { useAuth } from "@/context/AuthContext";
+import Image from "next/image";
 
 const Header: React.FC = () => {
     const router = useRouter();
@@ -53,7 +54,13 @@ const Header: React.FC = () => {
         >
             <div className="flex items-center gap-2">
                 {/* Logo */}
-                <img src="/Logo.png" alt="logo" className="h-10 w-10 sm:h-12 sm:w-12" />
+                <Image
+                    src="/Logo.png"
+                    alt="logo"
+                    width={400}
+                    height={400}
+                    className="h-10 w-10 sm:h-12 sm:w-12"
+                />
                 <div
                     className="text-lg sm:text-2xl ml-3 sm:ml-12 font-extrabold text-white tracking-tight"
                 >

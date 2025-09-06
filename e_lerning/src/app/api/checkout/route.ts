@@ -1,7 +1,8 @@
 import dbConnect from "@/app/lib/dbConnect";
 import {getVerifiedUser} from "@/utils/verifyRequest";
-import UserModel from "@/models/User";
+import UserModel, {BuyCourse} from "@/models/User";
 import CourseModel from "@/models/Course";
+import {Types} from "mongoose";
 
 export async function POST(req: Request) {
     await dbConnect();
@@ -27,8 +28,8 @@ export async function POST(req: Request) {
             }, { status: 404 });
         }
 
-        const alreadyBought = user?.Buy_Course?.map(c => c.courseId.toString()) || [];
-        const newCourseIds = courseIds.filter(id => !alreadyBought.includes(id));
+        const alreadyBought = user?.Buy_Course?.map((c: BuyCourse) => c.courseId.toString()) || [];
+        const newCourseIds = courseIds.filter((id: Types.ObjectId) => !alreadyBought.includes(id));
 
         if (newCourseIds.length === 0) {
             return Response.json({
@@ -37,7 +38,7 @@ export async function POST(req: Request) {
             }, { status: 409 });
         }
 
-        const newBuyCourses = newCourseIds.map(id => ({
+        const newBuyCourses = newCourseIds.map((id: Types.ObjectId) => ({
             courseId: id,
             buyDate: new Date(),
         }));

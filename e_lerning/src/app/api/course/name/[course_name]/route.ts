@@ -1,7 +1,7 @@
 import dbConnect from "@/app/lib/dbConnect";
 import CourseModel from "@/models/Course";
 
-export async function GET(req: Request, {params}: { params: { course_name: string } }) {
+export async function GET(req: Request, { params }: { params: { course_name: string } }) {
     await dbConnect();
 
     try {

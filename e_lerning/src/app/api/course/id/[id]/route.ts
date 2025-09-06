@@ -1,8 +1,7 @@
 import dbConnect from "@/app/lib/dbConnect";
 import CourseModel from "@/models/Course";
-import {Types} from "mongoose";
 
-export async function GET(req: Request, {params}: { params: { id: Types.ObjectId } }): Promise {
+export async function GET(req: Request, { params }: { params: { id: string } }) {
     await dbConnect();
 
     try {

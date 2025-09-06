@@ -11,6 +11,7 @@ import toast from "react-hot-toast";
 import {addToFavouriteService, getFavouriteService, removeFromFavouriteService} from "@/services/FavouriteService";
 import {useRouter} from "next/navigation";
 import Loader from "@/components/Loader";
+import Image from "next/image";
 
 const FavoritePage: React.FC = () => {
     const [searchQuery, setSearchQuery] = useState('');
@@ -153,9 +154,11 @@ const FavoritePage: React.FC = () => {
                                     className="bg-white rounded-xl p-4 shadow-lg hover:shadow-xl transition transform hover:-translate-y-1 relative"
                                 >
                                     <div className="relative mb-4">
-                                        <img
+                                        <Image
                                             src={course.Image || "https://www.shutterstock.com/image-vector/default-ui-image-placeholder-wireframes-600nw-1037719192.jpg"}
                                             alt={course.Course_Name}
+                                            width={400}
+                                            height={400}
                                             className="w-full h-40 object-cover rounded-lg"
                                         />
                                         <div

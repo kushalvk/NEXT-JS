@@ -4,6 +4,7 @@ import React, {useEffect, useState} from 'react';
 import Link from 'next/link';
 import {Button} from "@/components/ui/button";
 import {useRouter} from "next/navigation";
+import Image from "next/image";
 
 const Home: React.FC = () => {
     const router = useRouter();
@@ -70,9 +71,11 @@ const Home: React.FC = () => {
 
                     {/* Hero Section Image */}
                     <div className="ml-5 hidden lg:flex flex-1 items-center justify-center relative">
-                        <img
-                            src="https://static.vecteezy.com/system/resources/previews/002/629/904/non_2x/portrait-of-woman-university-student-holding-book-in-studio-grey-background-free-photo.jpg"
-                            alt="Modern Learning Environment"
+                        <Image
+                            src={"https://static.vecteezy.com/system/resources/previews/002/629/904/non_2x/portrait-of-woman-university-student-holding-book-in-studio-grey-background-free-photo.jpg"}
+                            alt={"Modern Learning Environment"}
+                            width={400}
+                            height={400}
                             className="max-w-lg object-cover rounded-lg shadow-xl"
                         />
                         <div className="ml-7 absolute inset-0 rounded-lg bg-gradient-to-r from-black/70 to-transparent pointer-events-none"></div>

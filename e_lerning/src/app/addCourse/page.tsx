@@ -5,6 +5,7 @@ import Link from 'next/link';
 import {Button} from '@/components/ui/button';
 import toast from "react-hot-toast";
 import {addCourse} from "@/services/CourseService";
+import Image from "next/image";
 
 const AddCoursePage: React.FC = () => {
     const [courseName, setCourseName] = useState('');
@@ -30,7 +31,8 @@ const AddCoursePage: React.FC = () => {
                 formData.append('Price', price);
                 formData.append('Video', videoFile);
                 formData.append('Video_Description', videoDescription);
-                formData.append('Image', imageFile);
+                if (imageFile)
+                    formData.append('Image', imageFile);
 
                 const response = await addCourse(formData);
 
@@ -42,8 +44,8 @@ const AddCoursePage: React.FC = () => {
             } else {
                 toast.error('All the Fields are compulsory!');
             }
-        } catch (error) {
-            toast.error(error.message);
+        } catch {
+            toast.error("Fail to add course!");
         } finally {
             setCourseName('');
             setDescription('');
@@ -78,9 +80,11 @@ const AddCoursePage: React.FC = () => {
                             />
                             {imageFile && (
                                 <div className="mt-2">
-                                    <img
+                                    <Image
                                         src={URL.createObjectURL(imageFile)}
                                         alt="Preview"
+                                        width={400}
+                                        height={400}
                                         className="w-40 h-28 object-cover rounded-lg border border-white/40"
                                     />
                                 </div>

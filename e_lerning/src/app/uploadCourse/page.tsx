@@ -12,6 +12,7 @@ import {addToFavouriteService, removeFromFavouriteService} from "@/services/Favo
 import {useRouter} from "next/navigation";
 import {userUploadedCourse} from "@/services/CourseService";
 import Loader from "@/components/Loader";
+import Image from "next/image";
 
 const UploadCoursePage: React.FC = () => {
     const [searchQuery, setSearchQuery] = useState('');
@@ -150,9 +151,12 @@ const UploadCoursePage: React.FC = () => {
                                     className="bg-white rounded-xl p-4 shadow-lg hover:shadow-xl transition transform hover:-translate-y-1 relative"
                                 >
                                     <div className="relative mb-4">
-                                        <img
-                                            src={course.Image}
+                                        <Image
+                                            src={course.Image ||
+                                                "https://www.shutterstock.com/image-vector/default-ui-image-placeholder-wireframes-600nw-1037719192.jpg"}
                                             alt={course.Course_Name}
+                                            width={400}
+                                            height={400}
                                             className="w-full h-40 object-cover rounded-lg"
                                         />
                                         <div

@@ -6,6 +6,7 @@ import {loginService} from "@/services/AuthService";
 import {useRouter} from "next/navigation";
 import {LoginData, LoginResponse} from "@/utils/Responses";
 import { useAuth } from "@/context/AuthContext";
+import Image from "next/image";
 
 const Login: React.FC = () => {
     const [Username, setUsername] = useState<string>('');
@@ -42,7 +43,13 @@ const Login: React.FC = () => {
             className="min-h-screen flex flex-col lg:flex-row items-center justify-center bg-gradient-to-br from-indigo-100 via-purple-100 to-blue-100 p-4 font-sans">
             {/* Left Side - SVG Illustration */}
             <div className="hidden lg:flex flex-1 items-center justify-center p-8">
-                <img src={"/svg/login.svg"} alt="Login Illustration" className="max-h-md max-w-md"/>
+                <Image
+                    src="/svg/login.svg"
+                    alt="Login Illustration"
+                    width={400}
+                    height={400}
+                    className="max-h-md max-w-md"
+                />
             </div>
             {/* Right Side - Login Form */}
             <div className="flex-1 flex items-center justify-center p-8">

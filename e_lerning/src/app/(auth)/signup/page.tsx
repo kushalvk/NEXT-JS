@@ -6,6 +6,7 @@ import {signup} from '@/services/AuthService';
 import toast from 'react-hot-toast';
 import {useRouter} from "next/navigation";
 import { CommonApiResponse } from "@/utils/Responses";
+import Image from "next/image";
 
 export interface SignupData {
     Username: string;
@@ -169,7 +170,13 @@ const SignUp: React.FC = () => {
             </div>
             {/* Right Side - SVG Illustration */}
             <div className="hidden lg:flex flex-1 items-center justify-center p-8">
-                <img src={"/svg/sign-up.svg"} alt="Sign-up Illustration" className="max-h-md max-w-md"/>
+                <Image
+                    src="/svg/sign-up.svg"
+                    alt="Sign-up Illustration"
+                    width={400}
+                    height={400}
+                    className="max-h-md max-w-md"
+                />
             </div>
         </div>
     );

@@ -1,7 +1,8 @@
 import dbConnect from "@/app/lib/dbConnect";
 import {getVerifiedUser} from "@/utils/verifyRequest";
 import CourseModel from "@/models/Course";
-import UserModel from "@/models/User";
+import UserModel, {Certifiate, WatchedCourse} from "@/models/User";
+import { Types } from "mongoose";
 
 export async function POST(req: Request) {
     await dbConnect();
@@ -20,7 +21,7 @@ export async function POST(req: Request) {
         const {user, errorResponse} = await getVerifiedUser(req);
         if (errorResponse) return errorResponse;
 
-        if (!user.Buy_Course.some(id => id.toString() === courseId)) {
+        if (!user.Buy_Course.some((id: Types.ObjectId) => id.toString() === courseId)) {
             return Response.json({
                 success: false,
                 message: "Your are not bought this course",
@@ -45,11 +46,11 @@ export async function POST(req: Request) {
             }, {status: 404});
         }
 
-        const userCourseProgress = freshUser.Watched_Course.find(course => course.courseId.toString() === courseId);
+        const userCourseProgress = freshUser.Watched_Course.find((course: WatchedCourse) => course.courseId.toString() === courseId);
 
         const watchCount = userCourseProgress?.completedVideos.length || 0;
 
-        const alreadyIssued = freshUser.Certificate.some(cert => cert.courseId.toString() === courseId);
+        const alreadyIssued = freshUser.Certificate.some((cert: Certifiate) => cert.courseId.toString() === courseId);
 
         if (alreadyIssued) {
             return Response.json({

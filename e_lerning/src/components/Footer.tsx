@@ -3,6 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { FaFacebook, FaTwitter, FaInstagram, FaLinkedin } from 'react-icons/fa';
+import Image from "next/image";
 
 const Footer: React.FC = () => {
     return (
@@ -11,7 +12,13 @@ const Footer: React.FC = () => {
                 {/* Brand Section */}
                 <div className="flex flex-col items-center sm:items-start">
                     <div className="flex items-center gap-2 mb-4">
-                        <img src="/Logo.png" alt="logo" className="h-10 w-10 sm:h-12 sm:w-12" />
+                        <Image
+                            src="/Logo.png"
+                            alt="logo"
+                            width={400}
+                            height={400}
+                            className="h-10 w-10 sm:h-12 sm:w-12"
+                        />
                         <div className="text-lg sm:text-2xl font-extrabold text-white tracking-tight">
                             SkillSurge
                         </div>

@@ -14,10 +14,11 @@ import {checkoutCourse, fetchCartCourse} from "@/services/CourseService";
 import Loader from "@/components/Loader";
 import axios from "axios";
 import Script from "next/script";
+import Image from "next/image";
 
 const CartPage: React.FC = () => {
     const [searchQuery, setSearchQuery] = useState('');
-    const [likedCourses, setLikedCourses] = useState([]);
+    const [likedCourses, setLikedCourses] = useState<[]>([]);
     const [coursesCart, setCoursesCart] = useState<[]>([]);
     const [userData, setUserData] = useState<User>();
     const [isloding, setIsLoding] = useState<boolean>(true);
@@ -229,9 +230,11 @@ const CartPage: React.FC = () => {
                                     className="bg-white rounded-xl p-4 shadow-lg hover:shadow-xl transition transform hover:-translate-y-1 relative"
                                 >
                                     <div className="relative mb-4">
-                                        <img
+                                        <Image
                                             src={item.Image || "https://www.shutterstock.com/image-vector/default-ui-image-placeholder-wireframes-600nw-1037719192.jpg"}
                                             alt={item.Course_Name}
+                                            width={400}
+                                            height={400}
                                             className="w-full h-40 object-cover rounded-lg"
                                         />
                                         <div
