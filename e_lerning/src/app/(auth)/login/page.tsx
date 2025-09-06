@@ -31,8 +31,8 @@ const Login: React.FC = () => {
                 toast.error(response.message);
                 toast.dismiss(loadingToastId);
             }
-        } catch (error: any) {
-            toast.error("Something went wrong. Please try again. " + (error?.message || ""));
+        } catch {
+            toast.error("Something went wrong. Please try again. ");
             toast.dismiss(loadingToastId);
         }
     };
