@@ -26,7 +26,7 @@ const Login: React.FC = () => {
 
             if (response && response.success) {
                 login(response.UserToken);
-                router.back();
+                router.push('/');
                 toast.dismiss(loadingToastId);
             } else {
                 toast.error(response?.message || "Something went wrong. Please try again.");
