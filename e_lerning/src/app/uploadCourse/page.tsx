@@ -6,29 +6,38 @@ import {Button} from '@/components/ui/button';
 import {FiSearch} from 'react-icons/fi';
 import {FaHeart} from 'react-icons/fa';
 import {User} from "@/models/User";
-import {loggedUser, loggedUserResponse} from "@/services/AuthService";
+import {loggedUser} from "@/services/AuthService";
 import toast from "react-hot-toast";
 import {addToFavouriteService, removeFromFavouriteService} from "@/services/FavouriteService";
 import {useRouter} from "next/navigation";
 import {userUploadedCourse} from "@/services/CourseService";
 import Loader from "@/components/Loader";
 import Image from "next/image";
+import { Types } from 'mongoose';
 
 const UploadCoursePage: React.FC = () => {
     const [searchQuery, setSearchQuery] = useState('');
-    const [likedCourses, setLikedCourses] = useState<[]>([]);
+    const [likedCourses, setLikedCourses] = useState<string[]>([]);
     const [userData, setUserData] = useState<User>();
-    const [uplodedCourses, setUplodedCourses] = useState([]);
+    type Course = {
+        _id: string;
+        Course_Name: string;
+        Description: string;
+        Price: number;
+        Image?: string;
+    };
+    
+    const [uplodedCourses, setUplodedCourses] = useState<Course[]>([]);
     const [isLoading, setIsLoading] = useState<boolean>(true);
 
     const router = useRouter();
 
     const fetchUserData = async () => {
         try {
-            const response: loggedUserResponse = await loggedUser();
-            if (response.success) {
+            const response = await loggedUser();
+            if (response && response.success) {
                 setUserData(response.User);
-                setLikedCourses(response.User.Favourite);
+                setLikedCourses(response.User.Favourite.map((fav: Types.ObjectId) => fav.toString()));
             }
         } catch (error) {
             console.error(error);

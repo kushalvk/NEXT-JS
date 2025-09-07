@@ -4,7 +4,7 @@ import Link from "next/link";
 import toast from "react-hot-toast";
 import {loginService} from "@/services/AuthService";
 import {useRouter} from "next/navigation";
-import {LoginData, LoginResponse} from "@/utils/Responses";
+import {LoginData} from "@/utils/Responses";
 import { useAuth } from "@/context/AuthContext";
 import Image from "next/image";
 
@@ -22,14 +22,14 @@ const Login: React.FC = () => {
         const payload: LoginData = {Username, Password};
 
         try {
-            const response: LoginResponse = await loginService(payload);
+            const response = await loginService(payload);
 
-            if (response.success) {
+            if (response && response.success) {
                 login(response.UserToken);
                 router.back();
                 toast.dismiss(loadingToastId);
             } else {
-                toast.error(response.message);
+                toast.error(response?.message || "Something went wrong. Please try again.");
                 toast.dismiss(loadingToastId);
             }
         } catch {

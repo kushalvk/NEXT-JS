@@ -5,8 +5,7 @@ import Link from 'next/link';
 import {Button} from '@/components/ui/button';
 import {FiSearch} from 'react-icons/fi';
 import {FaHeart} from 'react-icons/fa';
-import {Course} from "@/models/Course";
-import {CourseResponse} from "@/utils/Responses";
+import {CourseCard, CourseResponse} from "@/utils/Responses";
 import {getAllCourses} from "@/services/CourseService";
 import {User} from "@/models/User";
 import {loggedUser, loggedUserResponse} from "@/services/AuthService";
@@ -15,12 +14,13 @@ import {addToFavouriteService, removeFromFavouriteService} from "@/services/Favo
 import {useRouter} from "next/navigation";
 import Loader from "@/components/Loader";
 import Image from "next/image";
+import { Types } from 'mongoose';
 
 const CoursesPage: React.FC = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedCategory, setSelectedCategory] = useState('All');
-    const [likedCourses, setLikedCourses] = useState<[]>([]);
-    const [courses, setCourses] = useState<Course[]>([]);
+    const [likedCourses, setLikedCourses] = useState<string[]>([]);
+    const [courses, setCourses] = useState<CourseCard[]>([]);
     const [userData, setUserData] = useState<User>();
     const [isLoding, setIsLoding] = useState(true);
 
@@ -28,11 +28,11 @@ const CoursesPage: React.FC = () => {
 
     const fetchUserData = async () => {
         try {
-            const response: loggedUserResponse = await loggedUser();
+            const response = await loggedUser() as loggedUserResponse;
 
             if (response.success) {
                 setUserData(response.User);
-                setLikedCourses(response.User.Favourite);
+                setLikedCourses(response.User.Favourite.map((id: string | Types.ObjectId) => id.toString()));
             }
         } catch (error) {
             console.error(error);
@@ -41,10 +41,10 @@ const CoursesPage: React.FC = () => {
 
     const fetchCourses = async () => {
         try {
-            const response: CourseResponse = await getAllCourses();
+            const response = await getAllCourses() as CourseResponse;
 
             if (response.success) {
-                setCourses(response.course);
+                setCourses(response.course as unknown as CourseCard[]);
             }
         } catch (error) {
             console.error(error);
@@ -158,7 +158,7 @@ const CoursesPage: React.FC = () => {
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                             {filteredCourses.map((course) => (
                                 <div
-                                    key={course.id}
+                                    key={course._id.toString()}
                                     className="bg-white rounded-xl p-4 shadow-lg hover:shadow-xl transition transform hover:-translate-y-1 relative"
                                 >
                                     <div className="relative mb-4">
@@ -172,13 +172,13 @@ const CoursesPage: React.FC = () => {
                                         <div
                                             className="absolute inset-0 rounded-lg bg-gradient-to-r from-black/50 to-transparent pointer-events-none"></div>
                                         <button
-                                            onClick={() => toggleLike(course._id)}
+                                            onClick={() => toggleLike(course._id.toString())}
                                             className="absolute top-2 right-2 p-1 rounded-full bg-white/80 hover:bg-white transition-colors duration-300"
-                                            aria-label={likedCourses.includes(course._id) ? 'Unlike course' : 'Like course'}
+                                            aria-label={likedCourses.includes(course._id.toString()) ? 'Unlike course' : 'Like course'}
                                         >
                                             <FaHeart
                                                 className={`w-5 h-5 ${
-                                                    likedCourses.includes(course._id) ? 'text-[#FF6B6B]' : 'text-gray-400'
+                                                    likedCourses.includes(course._id.toString()) ? 'text-[#FF6B6B]' : 'text-gray-400'
                                                 }`}
                                             />
                                         </button>

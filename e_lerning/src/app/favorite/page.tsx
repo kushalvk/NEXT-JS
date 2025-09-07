@@ -12,23 +12,34 @@ import {addToFavouriteService, getFavouriteService, removeFromFavouriteService} 
 import {useRouter} from "next/navigation";
 import Loader from "@/components/Loader";
 import Image from "next/image";
+import { Types } from 'mongoose';
 
 const FavoritePage: React.FC = () => {
     const [searchQuery, setSearchQuery] = useState('');
-    const [likedCourses, setLikedCourses] = useState([]);
+    const [likedCourses, setLikedCourses] = useState<string[]>([]);
     const [userData, setUserData] = useState<User>();
-    const [favouriteCourses, setFavouriteCourses] = useState([]);
+    // Define a Course type if not already defined
+    type Course = {
+        _id: string;
+        Course_Name: string;
+        Description: string;
+        Price: string;
+        Image?: string;
+        // add other fields as needed
+    };
+
+    const [favouriteCourses, setFavouriteCourses] = useState<Course[]>([]);
     const [isLoding, setIsLoding] = useState<boolean>(true);
 
     const router = useRouter();
 
     const fetchUserData = async () => {
         try {
-            const response: loggedUserResponse = await loggedUser();
+            const response = await loggedUser() as loggedUserResponse;
             if (response?.success) {
                 setUserData(response.User);
                 if (response.User?.Favourite) {
-                    setLikedCourses(response.User.Favourite);
+                    setLikedCourses(response.User.Favourite.map((id: string | Types.ObjectId) => id.toString()) as string[]);
                 }
             }
         } catch (error) {
@@ -41,7 +52,8 @@ const FavoritePage: React.FC = () => {
             const response = await getFavouriteService();
 
             if (response?.success) {
-                setFavouriteCourses(response.User.Favourite);
+                setFavouriteCourses(response.User.Favourite.map((id: string | Types.ObjectId) => id.toString()) as unknown as Course[]);
+                setLikedCourses(response.User.Favourite.map((id: string | Types.ObjectId) => id.toString()) as string[]);
             }
         } catch (error) {
             console.error(error);
@@ -79,7 +91,19 @@ const FavoritePage: React.FC = () => {
                 // Call LIKE API
                 setLikedCourses((prev) => [...prev, courseId]);
                 const newCourse = await addToFavouriteService({courseId});
-                setFavouriteCourses((prev) => [...prev, newCourse]);
+                // Ensure newCourse is of type Course before adding
+                if (
+                    newCourse &&
+                    typeof newCourse === 'object' &&
+                    '_id' in newCourse &&
+                    'Course_Name' in newCourse &&
+                    'Description' in newCourse &&
+                    'Price' in newCourse
+                ) {
+                    setFavouriteCourses((prev) => [...prev, newCourse as Course]);
+                } else {
+                    toast.error("Failed to add course to favorites.");
+                }
             }
         } catch (error) {
             console.error("Failed to toggle like:", error);
@@ -150,7 +174,7 @@ const FavoritePage: React.FC = () => {
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                             {filteredCourses.map((course) => (
                                 <div
-                                    key={course._id}
+                                    key={course._id.toString()}
                                     className="bg-white rounded-xl p-4 shadow-lg hover:shadow-xl transition transform hover:-translate-y-1 relative"
                                 >
                                     <div className="relative mb-4">
@@ -164,13 +188,13 @@ const FavoritePage: React.FC = () => {
                                         <div
                                             className="absolute inset-0 rounded-lg bg-gradient-to-r from-black/50 to-transparent pointer-events-none"></div>
                                         <button
-                                            onClick={() => toggleLike(course._id)}
+                                            onClick={() => toggleLike(course._id.toString())}
                                             className="absolute top-2 right-2 p-1 rounded-full bg-white/80 hover:bg-white transition-colors duration-300"
-                                            aria-label={likedCourses.includes(course._id) ? 'Unlike course' : 'Like course'}
+                                            aria-label={likedCourses.includes(course._id.toString()) ? 'Unlike course' : 'Like course'}
                                         >
                                             <FaHeart
                                                 className={`w-5 h-5 ${
-                                                    likedCourses.includes(course._id)
+                                                    likedCourses.includes(course._id.toString())
                                                         ? 'text-[#FF6B6B]'
                                                         : 'text-gray-400'
                                                 }`}
@@ -189,11 +213,11 @@ const FavoritePage: React.FC = () => {
                                         <Button
                                             variant="outline"
                                             className="rounded-lg duration-300 flex items-center justify-center"
-                                            onClick={() => toggleLike(course._id)}
+                                            onClick={() => toggleLike(course._id.toString())}
                                         >
                                             <FaHeart
                                                 className={`w-5 h-5 ${
-                                                    likedCourses.includes(course._id)
+                                                    likedCourses.includes(course._id.toString())
                                                         ? 'text-[#FF6B6B]'
                                                         : 'text-gray-400'
                                                 }`}

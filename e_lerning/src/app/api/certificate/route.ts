@@ -1,8 +1,7 @@
 import dbConnect from "@/app/lib/dbConnect";
 import {getVerifiedUser} from "@/utils/verifyRequest";
 import CourseModel from "@/models/Course";
-import UserModel, {Certifiate, WatchedCourse} from "@/models/User";
-import { Types } from "mongoose";
+import UserModel, {BuyCourse, Certifiate, WatchedCourse} from "@/models/User";
 
 export async function POST(req: Request) {
     await dbConnect();
@@ -21,7 +20,7 @@ export async function POST(req: Request) {
         const {user, errorResponse} = await getVerifiedUser(req);
         if (errorResponse) return errorResponse;
 
-        if (!user.Buy_Course.some((id: Types.ObjectId) => id.toString() === courseId)) {
+        if (!user.Buy_Course.some((id: BuyCourse) => id.courseId.toString() === courseId)) {
             return Response.json({
                 success: false,
                 message: "Your are not bought this course",

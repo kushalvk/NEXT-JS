@@ -6,7 +6,7 @@ import {Button} from '@/components/ui/button';
 import {FiSearch} from 'react-icons/fi';
 import {FaHeart, FaPlayCircle} from 'react-icons/fa';
 import {User} from "@/models/User";
-import {loggedUser, loggedUserResponse} from "@/services/AuthService";
+import {loggedUser} from "@/services/AuthService";
 import {getCourseData} from "@/services/MyCourseService";
 import toast from "react-hot-toast";
 import {addToFavouriteService, removeFromFavouriteService} from "@/services/FavouriteService";
@@ -17,7 +17,17 @@ import Image from "next/image";
 const MyCoursesPage: React.FC = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [likedCourses, setLikedCourses] = useState<string[]>([]);
-    const [myCourses, setMyCourses] = useState([]);
+    type MyCourse = {
+        courseId: {
+            _id: string;
+            Course_Name: string;
+            Description: string;
+            Image?: string;
+        };
+        Image?: string;
+        // Add other properties if needed
+    };
+    const [myCourses, setMyCourses] = useState<MyCourse[]>([]);
     const [userData, setUserData] = useState<User>();
     const [isLoading, setIsLoading] = useState<boolean>(true);
 
@@ -25,8 +35,8 @@ const MyCoursesPage: React.FC = () => {
 
     const fetchUserData = async () => {
         try {
-            const response: loggedUserResponse = await loggedUser();
-            if (response.success) {
+            const response = await loggedUser();
+            if (response && response.success) {
                 setUserData(response.User);
             }
         } catch (error) {
@@ -40,7 +50,7 @@ const MyCoursesPage: React.FC = () => {
 
             if (response.success) {
                 setMyCourses(response.User.Buy_Course);
-                const favIds = response.User.Favourite.map((fav) => fav.toString());
+                const favIds = response.User.Favourite.map((id: string) => id);
                 setLikedCourses(favIds);
             }
         } catch (error) {
@@ -160,7 +170,7 @@ const MyCoursesPage: React.FC = () => {
                                     <div className="relative mb-4">
                                         <Image
                                             src={course.Image || "https://www.shutterstock.com/image-vector/default-ui-image-placeholder-wireframes-600nw-1037719192.jpg"}
-                                            alt={course.Course_Name}
+                                            alt={course.courseId.Course_Name}
                                             width={400}
                                             height={400}
                                             className="w-full h-40 object-cover rounded-lg"

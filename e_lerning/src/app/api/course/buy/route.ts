@@ -1,7 +1,7 @@
 import dbConnect from "@/app/lib/dbConnect";
 import CourseModel from "@/models/Course";
 import {getVerifiedUser} from "@/utils/verifyRequest";
-import UserModel from "@/models/User";
+import UserModel, { BuyCourse } from "@/models/User";
 
 export async function PUT(req: Request) {
     await dbConnect();
@@ -29,7 +29,7 @@ export async function PUT(req: Request) {
         const {user, errorResponse} = await getVerifiedUser(req);
         if (errorResponse) return errorResponse;
 
-        if (user?.Buy_Course?.some(item => item.courseId.toString() === courseId)) {
+        if (user?.Buy_Course?.some((item: BuyCourse) => item.courseId.toString() === courseId)) {
             return Response.json({
                 success: false,
                 message: "You have already bought this course.",
@@ -92,7 +92,7 @@ export async function DELETE(req: Request) {
         const {user, errorResponse} = await getVerifiedUser(req);
         if (errorResponse) return errorResponse;
 
-        if (!user?.Buy_Course?.some(item => item.courseId.toString() === courseId)) {
+        if (!user?.Buy_Course?.some((item: BuyCourse) => item.courseId.toString() === courseId)) {
             return Response.json({
                 success: false,
                 message: "You haven't bought this course.",

@@ -36,10 +36,10 @@ const AddCoursePage: React.FC = () => {
 
                 const response = await addCourse(formData);
 
-                if (response.success) {
-                    toast.success(response.message);
+                if (response && response.success) {
+                    toast.success(response?.message || "Something went wrong. Please try again.");
                 } else {
-                    toast.error("Error at adding course!");
+                    toast.error(response?.message || "Something went wrong. Please try again.");
                 }
             } else {
                 toast.error('All the Fields are compulsory!');

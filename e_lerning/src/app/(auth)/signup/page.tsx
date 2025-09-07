@@ -5,7 +5,6 @@ import Link from 'next/link';
 import {signup} from '@/services/AuthService';
 import toast from 'react-hot-toast';
 import {useRouter} from "next/navigation";
-import { CommonApiResponse } from "@/utils/Responses";
 import Image from "next/image";
 
 export interface SignupData {
@@ -49,13 +48,13 @@ const SignUp: React.FC = () => {
         const payload: SignupData = {Username, Password, Email, Full_name};
 
         try {
-            const response: CommonApiResponse = await signup(payload);
+            const response = await signup(payload);
 
-            if (!response.success) {
-                toast.error(response.message);
+            if (response && !response.success) {
+                toast.error(response?.message || "Something went wrong. Please try again.");
                 toast.dismiss(loadingToastId);
             } else {
-                toast.success(response.message);
+                toast.success(response?.message || "Something went wrong. Please try again.");
                 router.push('/login');
                 toast.dismiss(loadingToastId);
             }

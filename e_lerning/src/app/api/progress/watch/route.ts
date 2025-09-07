@@ -1,7 +1,7 @@
 import dbConnect from "@/app/lib/dbConnect";
 import {getVerifiedUser} from "@/utils/verifyRequest";
-import UserModel from "@/models/User";
-import CourseModel from "@/models/Course";
+import UserModel, { BuyCourse } from "@/models/User";
+import CourseModel, { Video } from "@/models/Course";
 
 export async function POST(req: Request) {
     await dbConnect();
@@ -22,7 +22,7 @@ export async function POST(req: Request) {
             }, {status: 400});
         }
 
-        if (!user?.Buy_Course?.some(item => item.courseId.toString() === courseId)) {
+        if (!user?.Buy_Course?.some((item: BuyCourse) => item.courseId.toString() === courseId)) {
             return Response.json({
                 success: false,
                 message: "Your are not bought this course.",
@@ -36,7 +36,7 @@ export async function POST(req: Request) {
             message: "Course Not Found",
         }, {status: 404});
 
-        const videoExist = course.Video.some(video => video._id.toString() === videoId);
+        const videoExist = course.Video.some((video: Video) => (video.Video_Url as string) === videoId);
 
         if (!videoExist) return Response.json({
             success: false,

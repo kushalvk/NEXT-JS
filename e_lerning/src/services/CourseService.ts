@@ -11,7 +11,7 @@ export const getAllCourses = async () => {
     }
 }
 
-export const getCourseById = async (id: string): Promise<CourseResponse> => {
+export const getCourseById = async (id: string): Promise<CourseResponse | undefined> => {
     try {
         const response = await axios.get<CourseResponse>(`/api/course/id/${id}`);
         return response.data;
@@ -20,7 +20,7 @@ export const getCourseById = async (id: string): Promise<CourseResponse> => {
     }
 }
 
-export const buyCourse = async (courseId: FormData): Promise<UserResponse> => {
+export const buyCourse = async (courseId: FormData): Promise<UserResponse | undefined> => {
     try {
         const token = localStorage.getItem("token");
         const response = await axios.put<UserResponse>(`/api/course/buy`, courseId, {
@@ -34,7 +34,7 @@ export const buyCourse = async (courseId: FormData): Promise<UserResponse> => {
     }
 }
 
-export const addToCartCourse = async (courseId: FormData): Promise<UserResponse> => {
+export const addToCartCourse = async (courseId: FormData): Promise<UserResponse | undefined> => {
     try {
         const token = localStorage.getItem("token");
         const response = await axios.post<UserResponse>(`/api/course/cart`, courseId, {
@@ -48,7 +48,7 @@ export const addToCartCourse = async (courseId: FormData): Promise<UserResponse>
     }
 }
 
-export const RemoveFromCartCourse = async (courseId: CourseIdData): Promise<UserResponse> => {
+export const RemoveFromCartCourse = async (courseId: CourseIdData): Promise<UserResponse | undefined> => {
     try {
         const token = localStorage.getItem("token");
         const response = await axios.delete<UserResponse>("/api/course/cart", {
@@ -64,7 +64,7 @@ export const RemoveFromCartCourse = async (courseId: CourseIdData): Promise<User
     }
 }
 
-export const addVideo = async (data: FormData): Promise<CourseResponse> => {
+export const addVideo = async (data: FormData): Promise<CourseResponse | undefined> => {
     try {
         const token = localStorage.getItem("token");
         const response = await axios.put<CourseResponse>(`/api/course/video`, data, {
@@ -93,7 +93,11 @@ export const fetchCartCourse = async () => {
     }
 }
 
-export const checkoutCourse = async (data): Promise<UserResponse> => {
+interface CheckoutCourseData {
+    courseIds: string[];
+}
+
+export const checkoutCourse = async (data: CheckoutCourseData): Promise<UserResponse | undefined> => {
     try {
         const token = localStorage.getItem("token");
         const response = await axios.post<UserResponse>(`/api/checkout`, data, {
@@ -123,7 +127,7 @@ export const userUploadedCourse = async () => {
     }
 }
 
-export const addCourse = async (course: FormData): Promise<CommonApiResponse> => {
+export const addCourse = async (course: FormData): Promise<CommonApiResponse | undefined> => {
     try {
         const token = localStorage.getItem("token");
         const response = await axios.post<CommonApiResponse>(`/api/course`, course, {
@@ -138,7 +142,7 @@ export const addCourse = async (course: FormData): Promise<CommonApiResponse> =>
     }
 }
 
-export const fetchCourseByDepartment = async (department: string): Promise<CourseResponse> => {
+export const fetchCourseByDepartment = async (department: string): Promise<CourseResponse | undefined> => {
     try {
         const token = localStorage.getItem("token");
         const response = await axios.get<CourseResponse>(`/api/course/${department}`, {

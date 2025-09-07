@@ -6,9 +6,9 @@ import {Button} from '@/components/ui/button';
 import {FiSearch} from 'react-icons/fi';
 import {FaHeart} from "react-icons/fa";
 import {getAllCourses} from "@/services/CourseService";
-import {loggedUser, loggedUserResponse} from "@/services/AuthService";
+import {loggedUser} from "@/services/AuthService";
 import {addToFavouriteService, removeFromFavouriteService} from "@/services/FavouriteService";
-import {CourseCard, CourseResponse} from "@/utils/Responses";
+import {CourseCard} from "@/utils/Responses";
 import {User} from "@/models/User";
 import toast from "react-hot-toast";
 import {useRouter} from "next/navigation";
@@ -26,12 +26,12 @@ const SearchCoursesPage: React.FC = () => {
     useEffect(() => {
         const courseData = async () => {
             try {
-                const response: CourseResponse = await getAllCourses();
+                const response = await getAllCourses();
 
-                if (!response.success) {
-                    console.error(response.message);
+                if (!response || !response.success) {
+                    console.error(response ? response.message : "No response from getAllCourses");
                 } else {
-                    setCourses(response.course);
+                    setCourses(Array.isArray(response.course) ? response.course : [response.course]);
                 }
             } catch (error) {
                 console.error(error);
@@ -41,9 +41,9 @@ const SearchCoursesPage: React.FC = () => {
         }
         const userdata = async () => {
             try {
-                const response: loggedUserResponse = await loggedUser();
+                const response = await loggedUser();
 
-                if (response.success) {
+                if (response && response.User) {
                     setUserData(response.User);
                     const favIds = response.User.Favourite.map((fav) => fav.toString()); // convert ObjectId to string
                     setLikedCourses(favIds);
@@ -126,7 +126,7 @@ const SearchCoursesPage: React.FC = () => {
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                             {filteredCourses.map((course) => (
                                 <div
-                                    key={course._id}
+                                    key={course._id.toString()}
                                     className="bg-white rounded-xl p-4 shadow-lg hover:shadow-xl transition transform hover:-translate-y-1 relative"
                                 >
                                     <div className="relative mb-4">
@@ -139,15 +139,15 @@ const SearchCoursesPage: React.FC = () => {
                                             className="w-full h-40 object-cover rounded-lg"
                                         />
                                         <button
-                                            onClick={() => toggleLike(course._id)}
+                                            onClick={() => toggleLike(course._id.toString())}
                                             className="absolute top-2 right-2 p-1 rounded-full bg-white/80 hover:bg-white transition-colors duration-300"
                                             aria-label={
-                                                likedCourses.includes(course._id) ? 'Unlike course' : 'Like course'
+                                                likedCourses.includes(course._id.toString()) ? 'Unlike course' : 'Like course'
                                             }
                                         >
                                             <FaHeart
                                                 className={`w-5 h-5 ${
-                                                    likedCourses.includes(course._id)
+                                                    likedCourses.includes(course._id.toString())
                                                         ? 'text-[#FF6B6B]'
                                                         : 'text-gray-400'
                                                 }`}

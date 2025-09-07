@@ -10,16 +10,17 @@ export interface loggedUserResponse {
     User: User
 }
 
-export const signup = async (data: SignupData): Promise<CommonApiResponse> => {
+export const signup = async (data: SignupData): Promise<CommonApiResponse | undefined> => {
     try {
         const response = await axios.post<CommonApiResponse>('/api/sign-up', data);
         return response.data;
     } catch (error) {
         Error(error);
     }
+    return undefined; // <-- Add this line
 }
 
-export const loginService = async (data: LoginData): Promise<LoginResponse> => {
+export const loginService = async (data: LoginData): Promise<LoginResponse | undefined> => {
     try {
         const response = await axios.post<LoginResponse>('/api/sign-in', data);
         return response.data;
@@ -44,7 +45,7 @@ export const loggedUser = async () => {
     }
 }
 
-export const updatedProfile = async (data: FormData): Promise<LoginResponse> => {
+export const updatedProfile = async (data: FormData): Promise<LoginResponse | undefined> => {
     try {
         const token = localStorage.getItem('token');
 

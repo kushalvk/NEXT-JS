@@ -2,7 +2,7 @@ import axios from 'axios';
 import Error from "@/services/Error";
 import {CourseIdData, UserResponse} from "@/utils/Responses";
 
-export const addToFavouriteService = async (data: CourseIdData): Promise<UserResponse> => {
+export const addToFavouriteService = async (data: CourseIdData): Promise<UserResponse | undefined> => {
     try {
         const token = localStorage.getItem("token");
         const response = await axios.put<UserResponse>("/api/favourite",
@@ -19,7 +19,7 @@ export const addToFavouriteService = async (data: CourseIdData): Promise<UserRes
     }
 }
 
-export const removeFromFavouriteService = async (data: CourseIdData): Promise<UserResponse> => {
+export const removeFromFavouriteService = async (data: CourseIdData): Promise<UserResponse | undefined> => {
     try {
         const token = localStorage.getItem("token");
         const response = await axios.delete<UserResponse>("/api/favourite",
@@ -36,7 +36,7 @@ export const removeFromFavouriteService = async (data: CourseIdData): Promise<Us
     }
 }
 
-export const getFavouriteService = async (): Promise<UserResponse> => {
+export const getFavouriteService = async (): Promise<UserResponse | undefined> => {
     try {
         const token = localStorage.getItem("token");
         const response = await axios.get<UserResponse>(`/api/favourite`, {

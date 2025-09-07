@@ -6,6 +6,7 @@ import {Button} from '@/components/ui/button';
 import {User} from "@/models/User";
 import {loggedUser, loggedUserResponse, updatedProfile} from "@/services/AuthService";
 import toast from "react-hot-toast";
+import { LoginResponse } from '@/utils/Responses';
 
 const ProfilePage: React.FC = () => {
     const [isEditing, setIsEditing] = useState(false);
@@ -13,12 +14,16 @@ const ProfilePage: React.FC = () => {
 
     const fetchUserData = async () => {
         try {
-            const response: loggedUserResponse = await loggedUser();
-            if (response.success) {
-                setUserData(response.User);
+            const response = await loggedUser() as loggedUserResponse;
+            if (response && response.success) {
+                setUserData(response.User as User);
             }
         } catch (error) {
-            console.error(error.message);
+            if (error instanceof Error) {
+                console.error(error.message);
+            } else {
+                console.error(error);
+            }
         }
     };
 
@@ -41,13 +46,19 @@ const ProfilePage: React.FC = () => {
             formData.append("Full_name", userData.Full_name);
             formData.append("RazorpayId", userData.RazorpayId || "");
 
-            const response = await updatedProfile(formData);
+            const response = await updatedProfile(formData) as LoginResponse;
 
-            if (response.success) {
+            if (response?.success) {
                 toast.success("Profile updated successfully!");
+            } else {
+                toast.error(response?.message || "Something went wrong.");
             }
         } catch (error) {
-            console.error(error.message);
+            if (error instanceof Error) {
+                console.error(error.message);
+            } else {
+                console.error(error);
+            }
         } finally {
             setIsEditing(false);
         }
@@ -63,9 +74,15 @@ const ProfilePage: React.FC = () => {
             razorpayId: "RazorpayId",
         };
 
-        const actualKey = fieldMap[name];
+        const actualKey = fieldMap[name as keyof typeof fieldMap];
 
-        setUserData((prev) => ({ ...prev, [actualKey]: value }));
+        setUserData((prev) => {
+            if (!prev) return prev;
+            return Object.assign(Object.create(Object.getPrototypeOf(prev)), {
+                ...prev,
+                [actualKey]: value,
+            });
+        });
     };
 
     return (
@@ -141,7 +158,7 @@ const ProfilePage: React.FC = () => {
                                         className="w-full px-4 py-2 bg-white/10 text-gray-700 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B6B] transition-all duration-300 text-sm"
                                     />
                                 </div>
-                                <p className="text-sm text-[#1E3A8A] mb-4">Joined: {userData?.createdAt}</p>
+                                <p className="text-sm text-[#1E3A8A] mb-4">Joined: {userData?.createdAt ? new Date(userData.createdAt).toLocaleString() : ""}</p>
                                 <Button
                                     variant="destructive"
                                     className="text-white rounded-lg duration-300"
@@ -155,7 +172,7 @@ const ProfilePage: React.FC = () => {
                                 <p className="text-lg font-semibold text-gray-700 mb-2">Username: {userData?.Username}</p>
                                 <p className="text-sm text-[#1E3A8A] mb-2">Email: {userData?.Email}</p>
                                 <p className="text-sm text-[#1E3A8A] mb-2">Full Name: {userData?.Full_name}</p>
-                                <p className="text-sm text-[#1E3A8A] mb-2">Joined: {new Date(userData?.createdAt).toLocaleString()}</p>
+                                <p className="text-sm text-[#1E3A8A] mb-2">Joined: {userData?.createdAt ? new Date(userData.createdAt).toLocaleString() : ""}</p>
                                 <p className="text-sm text-[#1E3A8A] mb-4">Razorpay
                                     ID: {userData?.RazorpayId || "Not Provided"}</p>
                                 <Button

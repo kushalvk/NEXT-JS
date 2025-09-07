@@ -1,28 +1,45 @@
 'use client';
 
-import React, {useState, useRef, useEffect} from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
-import {useParams, useRouter} from 'next/navigation';
-import {Button} from '@/components/ui/button';
-import {FaHeart} from 'react-icons/fa';
-import {loggedUser, loggedUserResponse} from '@/services/AuthService';
-import {User} from '@/models/User';
-import {CourseCard, CourseResponse} from '@/utils/Responses';
-import {addToCartCourse, buyCourse, getCourseById, RemoveFromCartCourse} from '@/services/CourseService';
+import { useParams, useRouter } from 'next/navigation';
+import { Button } from '@/components/ui/button';
+import { FaHeart } from 'react-icons/fa';
+import { loggedUser, loggedUserResponse } from '@/services/AuthService';
+import { User } from '@/models/User';
+import { CourseCard, CourseResponse, UserResponse } from '@/utils/Responses';
+import { addToCartCourse, buyCourse, getCourseById, RemoveFromCartCourse } from '@/services/CourseService';
 import Loader from "@/components/Loader";
 import toast from "react-hot-toast";
-import {addToFavouriteService, removeFromFavouriteService} from "@/services/FavouriteService";
-import {completeVideoApi} from '@/services/WatchedService';
-import {Dialog, DialogContent, DialogHeader, DialogTitle} from "@/components/ui/dialog";
-import {useAuth} from "@/context/AuthContext";
+import { addToFavouriteService, removeFromFavouriteService } from "@/services/FavouriteService";
+import { completeVideoApi } from '@/services/WatchedService';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useAuth } from "@/context/AuthContext";
 import Image from "next/image";
+import { Video } from '@/models/Course';
+
+// Define types to replace 'any'
+type BuyCourseType = { courseId: string | { _id: string } };
+type WatchedCourseType = {
+    courseId: string | { _id: string };
+    completedVideos?: (string | { toString(): string })[];
+};
+type UserType = User & {
+    Buy_Course?: BuyCourseType[];
+    Favourite?: (string | number)[];
+    Cart?: (string | number)[];
+    Upload_Course?: (string | number)[];
+    Watched_Course?: WatchedCourseType[];
+};
+type VideoWithId = Video & { _id: string };
 
 const ViewCoursePage: React.FC = () => {
-    const {id} = useParams();
+    const params = useParams();
+    const id = typeof params.id === 'string' ? params.id : Array.isArray(params.id) ? params.id[0] : '';
     const [likedCourses, setLikedCourses] = useState<boolean>(false);
     const videoRefs = useRef<{ [key: string]: HTMLVideoElement | null }>({});
-    const [userData, setUserData] = useState<User>();
-    const [CourseData, setCourseData] = useState<CourseCard>();
+    const [userData, setUserData] = useState<UserType | undefined>();
+    const [CourseData, setCourseData] = useState<CourseCard | undefined>();
     const [isBuyed, setIsBuyed] = useState<boolean>(false);
     const [shouldFetchUserData, setShouldFetchUserData] = useState(false);
     const [showLoginPopup, setShowLoginPopup] = useState(false);
@@ -30,23 +47,32 @@ const ViewCoursePage: React.FC = () => {
     const [userUploded, setUserUploded] = useState<boolean>(false);
 
     const router = useRouter();
-    const {logout} = useAuth();
+    const { logout } = useAuth();
 
     const fetchUserData = async () => {
         try {
-            const response: loggedUserResponse = await loggedUser();
-            if (response.success) {
-                setUserData(response.User);
-                if (response.User.Buy_Course.some((course) => course.courseId === id || course.courseId?._id === id)) {
+            const response = await loggedUser() as loggedUserResponse;
+            if (response && response.success) {
+                const user = response.User as UserType;
+                setUserData(user);
+                // Defensive: courseId can be string or object
+                if (
+                    Array.isArray(user.Buy_Course) &&
+                    user.Buy_Course.some(
+                        (course: BuyCourseType) =>
+                            course.courseId === id ||
+                            (typeof course.courseId === 'object' && (course.courseId as { _id: string })._id === id)
+                    )
+                ) {
                     setIsBuyed(true);
                 }
-                if (response.User.Favourite.includes(id)) {
+                if (Array.isArray(user.Favourite) && user.Favourite.map((Id) => Id.toString()).includes(id.toString())) {
                     setLikedCourses(true);
                 }
-                if (response.User.Cart.includes(id)) {
+                if (Array.isArray(user.Cart) && user.Cart.map((Id) => Id.toString()).includes(id.toString())) {
                     setIsInCart(true);
                 }
-                if (response.User.Upload_Course.includes(id)) {
+                if (Array.isArray(user.Upload_Course) && user.Upload_Course.map((Id) => Id.toString()).includes(id.toString())) {
                     setUserUploded(true);
                 }
             }
@@ -58,17 +84,20 @@ const ViewCoursePage: React.FC = () => {
     useEffect(() => {
         const fetchCourseData = async () => {
             try {
-                const response: CourseResponse = await getCourseById(id);
-                if (response.success) {
-                    setCourseData(response.course);
+                const response = await getCourseById(id) as CourseResponse;
+                if (response && response.success) {
+                    setCourseData(response.course as unknown as CourseCard);
                 }
             } catch (error) {
                 console.error(error);
             }
         };
 
-        fetchCourseData();
-        fetchUserData();
+        if (id) {
+            fetchCourseData();
+            fetchUserData();
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [id]);
 
     useEffect(() => {
@@ -76,22 +105,23 @@ const ViewCoursePage: React.FC = () => {
             fetchUserData();
             setShouldFetchUserData(false);
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [shouldFetchUserData]);
 
     const toggleLike = async (courseId: string) => {
         if (!userData) {
             router.push('/login');
-            toast("Please Login first", {icon: '⚠️'});
+            toast("Please Login first", { icon: '⚠️' });
             return;
         }
 
         try {
             if (likedCourses) {
                 setLikedCourses(false);
-                await removeFromFavouriteService({courseId});
+                await removeFromFavouriteService({ courseId });
             } else {
                 setLikedCourses(true);
-                await addToFavouriteService({courseId});
+                await addToFavouriteService({ courseId });
             }
         } catch (error) {
             console.error("Failed to toggle like:", error);
@@ -99,14 +129,17 @@ const ViewCoursePage: React.FC = () => {
     };
 
     const handleTimeUpdate = async (videoId: string, videoElement: HTMLVideoElement) => {
+        if (!videoElement || !videoElement.duration) return;
         const progress = (videoElement.currentTime / videoElement.duration) * 100 || 0;
 
         if (progress >= 100 && userData) {
             const watched = userData.Watched_Course?.find(
-                (entry) => entry.courseId === id || entry.courseId?._id === id
+                (entry: WatchedCourseType) =>
+                    entry.courseId === id ||
+                    (typeof entry.courseId === 'object' && (entry.courseId as { _id: string })._id === id)
             );
 
-            const alreadyCompleted = watched?.completedVideos.includes(videoId);
+            const alreadyCompleted = watched?.completedVideos?.map((Id) => Id.toString()).includes(id.toString());
             if (!alreadyCompleted) {
                 try {
                     await completeVideoApi(id, videoId);
@@ -144,7 +177,7 @@ const ViewCoursePage: React.FC = () => {
     if (!CourseData) {
         return (
             <div className="flex h-screen w-screen bg-blue-900 justify-center items-center">
-                <Loader/>
+                <Loader />
             </div>
         );
     }
@@ -152,7 +185,9 @@ const ViewCoursePage: React.FC = () => {
     let courseProgress = 0;
     if (userData && CourseData) {
         const watched = userData?.Watched_Course?.find(
-            (entry) => entry.courseId === id || entry.courseId?._id === id
+            (entry: WatchedCourseType) =>
+                entry.courseId === id ||
+                (typeof entry.courseId === 'object' && (entry.courseId as { _id: string })._id === id)
         );
         if (watched) {
             const completedVideos = watched.completedVideos?.length || 0;
@@ -166,7 +201,7 @@ const ViewCoursePage: React.FC = () => {
     const handleBuyCourse = async (courseId: string) => {
         if (!userData) {
             router.push('/login');
-            toast("Please Login first", {icon: '⚠️'});
+            toast("Please Login first", { icon: '⚠️' });
             return;
         }
 
@@ -174,13 +209,15 @@ const ViewCoursePage: React.FC = () => {
             const formData = new FormData();
             formData.append('courseId', courseId);
 
-            const response = await buyCourse(formData);
+            const response = await buyCourse(formData) as UserResponse;
 
-            if (response.success) {
+            if (response?.success) {
                 toast.success("You successfully bought this course!");
                 setIsBuyed(true);
                 setShouldFetchUserData(true);
                 setShowLoginPopup(true);
+            } else {
+                toast.error(response?.message || "Something went wrong.");
             }
 
         } catch (error) {
@@ -191,7 +228,7 @@ const ViewCoursePage: React.FC = () => {
     const handleCartCourse = async (courseId: string) => {
         if (!userData) {
             router.push('/login');
-            toast("Please Login first", {icon: '⚠️'});
+            toast("Please Login first", { icon: '⚠️' });
             return;
         }
 
@@ -199,31 +236,33 @@ const ViewCoursePage: React.FC = () => {
             const formData = new FormData();
             formData.append('courseId', courseId);
 
-            const response = await addToCartCourse(formData);
+            const response = await addToCartCourse(formData) as UserResponse;
 
-            if (response.success) {
+            if (response?.success) {
                 toast.success("Added to cart!");
                 setIsInCart(true);
+            } else {
+                toast.error(response?.message || "Something went wrong.");
             }
         } catch (error) {
             toast.error("" + error);
         }
-    }
+    };
 
     const handleRemoveCartCourse = async (courseId: string) => {
         try {
-            const response = await RemoveFromCartCourse(courseId);
+            const response = await RemoveFromCartCourse({courseId}) as UserResponse;
 
-            if (response.success) {
+            if (response?.success) {
                 toast.success("Remove from cart!");
                 setIsInCart(false);
             } else {
-                toast.error(response.message);
+                toast.error(response?.message || "Something went wrong.");
             }
         } catch (error) {
             toast.error("" + error);
         }
-    }
+    };
 
     return (
         <div
@@ -243,22 +282,22 @@ const ViewCoursePage: React.FC = () => {
                                 !isBuyed && (
                                     <>
                                         <Button variant="destructive"
-                                                className="text-white px-6 py-3 rounded-xl duration-300 font-semibold sm:text-lg"
-                                                onClick={() => handleBuyCourse(CourseData._id)}
+                                            className="text-white px-6 py-3 rounded-xl duration-300 font-semibold sm:text-lg"
+                                            onClick={() => handleBuyCourse(CourseData._id.toString())}
                                         >
                                             Buy
                                         </Button>
                                         {isInCart ? (
                                             <Button variant="destructive"
-                                                    className="text-white px-6 py-3 rounded-xl duration-300 font-semibold sm:text-lg"
-                                                    onClick={() => handleRemoveCartCourse(CourseData._id)}
+                                                className="text-white px-6 py-3 rounded-xl duration-300 font-semibold sm:text-lg"
+                                                onClick={() => handleRemoveCartCourse(CourseData._id.toString())}
                                             >
                                                 Remove from Cart
                                             </Button>
                                         ) : (
                                             <Button variant="destructive"
-                                                    className="text-white px-6 py-3 rounded-xl duration-300 font-semibold sm:text-lg"
-                                                    onClick={() => handleCartCourse(CourseData._id)}
+                                                className="text-white px-6 py-3 rounded-xl duration-300 font-semibold sm:text-lg"
+                                                onClick={() => handleCartCourse(CourseData._id.toString())}
                                             >
                                                 Cart
                                             </Button>
@@ -268,7 +307,7 @@ const ViewCoursePage: React.FC = () => {
                             }
 
                             <Button variant="outline"
-                                    className="text-white px-6 py-3 rounded-xl duration-300 font-semibold sm:text-lg">
+                                className="text-white px-6 py-3 rounded-xl duration-300 font-semibold sm:text-lg">
                                 <Link href="/courses">Back to Courses</Link>
                             </Button>
                         </div>
@@ -283,13 +322,13 @@ const ViewCoursePage: React.FC = () => {
                             className="w-full max-w-md h-48 sm:h-64 object-cover rounded-lg"
                         />
                         <div
-                            className="absolute inset-0 rounded-lg bg-gradient-to-r from-black/50 to-transparent pointer-events-none"/>
+                            className="absolute inset-0 rounded-lg bg-gradient-to-r from-black/50 to-transparent pointer-events-none" />
                         <button
-                            onClick={() => toggleLike(CourseData._id)}
+                            onClick={() => toggleLike(CourseData._id.toString())}
                             className="absolute top-2 right-2 p-1 rounded-full bg-white/80 hover:bg-white transition-colors duration-300"
                             aria-label={likedCourses ? 'Unlike course' : 'Like course'}
                         >
-                            <FaHeart className={`w-5 h-5 ${likedCourses ? 'text-[#FF6B6B]' : 'text-gray-400'}`}/>
+                            <FaHeart className={`w-5 h-5 ${likedCourses ? 'text-[#FF6B6B]' : 'text-gray-400'}`} />
                         </button>
                     </div>
                 </div>
@@ -321,7 +360,7 @@ const ViewCoursePage: React.FC = () => {
                                     </p>
                                     <div className="w-full bg-gray-600 rounded-full h-2.5">
                                         <div className="bg-[#FF6B6B] h-2.5 rounded-full"
-                                             style={{width: `${courseProgress}%`}}/>
+                                            style={{ width: `${courseProgress}%` }} />
                                     </div>
                                 </div>
                             </div>
@@ -332,46 +371,55 @@ const ViewCoursePage: React.FC = () => {
                                 <div className="flex justify-between items-center mb-6">
                                     <h2 className="text-2xl sm:text-3xl font-bold text-gray-200">Course Videos</h2>
                                     <Button variant="outline"
-                                            className="text-white px-6 py-3 rounded-xl duration-300 font-semibold sm:text-lg">
+                                        className="text-white px-6 py-3 rounded-xl duration-300 font-semibold sm:text-lg">
                                         <Link href={`/view/course/${CourseData._id}/add-video`}>Add Video</Link>
                                     </Button>
                                 </div>
                             )}
-                            {CourseData.Video.length === 0 ? (
+                            {(!CourseData.Video || CourseData.Video.length === 0) ? (
                                 <p className="text-gray-400 text-base sm:text-lg text-center">
                                     No videos available. Add a video to get started!
                                 </p>
                             ) : (
                                 <div className="space-y-6">
-                                    {CourseData.Video.map((video) => {
+                                    {CourseData.Video.map((video: Video) => {
+                                        const { _id, Video_Url, Description } = video as VideoWithId;
+                                        const videoId = _id;
                                         const watchedCourse = userData?.Watched_Course?.find(
-                                            (item) => item.courseId?.toString() === id.toString()
+                                            (item: WatchedCourseType) =>
+                                                item.courseId === id ||
+                                                (typeof item.courseId === 'object' && (item.courseId as { _id: string })._id === id)
                                         );
 
                                         const isCompleted = watchedCourse?.completedVideos?.some(
-                                            (vid) => vid.toString() === video._id.toString()
+                                            (vid: string | { toString(): string }) =>
+                                                vid === videoId ||
+                                                (typeof vid === 'object' && vid?.toString() === videoId)
                                         );
 
                                         return (
                                             <div
-                                                key={video._id}
+                                                key={videoId}
                                                 className="bg-white/10 rounded-lg p-4 flex flex-col sm:flex-row items-start sm:items-center gap-4"
                                             >
                                                 <div className="w-full sm:w-1/3">
                                                     <div className="relative"
-                                                         style={{width: '100%', paddingBottom: '56.25%'}}>
+                                                        style={{ width: '100%', paddingBottom: '56.25%' }}>
                                                         <video
                                                             controls
                                                             className="absolute top-0 left-0 w-full h-full rounded-lg"
-                                                            src={video.Video_Url}
-                                                            ref={(el) => (videoRefs.current[video._id] = el)}
-                                                            onTimeUpdate={() => handleTimeUpdate(video._id, videoRefs.current[video._id]!)}
-                                                            onPlay={() => handlePlay(video._id)}
+                                                            src={Video_Url}
+                                                            ref={el => { videoRefs.current[videoId] = el; }}
+                                                            onTimeUpdate={() => {
+                                                                const el = videoRefs.current[videoId];
+                                                                if (el) handleTimeUpdate(videoId, el);
+                                                            }}
+                                                            onPlay={() => handlePlay(videoId)}
                                                         />
                                                     </div>
                                                 </div>
                                                 <div className="flex-1">
-                                                    <p className="text-gray-400 text-sm sm:text-base mb-2">{video.Description}</p>
+                                                    <p className="text-gray-400 text-sm sm:text-base mb-2">{Description}</p>
                                                     {!userUploded && (
                                                         <p className={`text-sm font-semibold ${isCompleted ? 'text-green-400' : 'text-yellow-400'}`}>
                                                             Status: {isCompleted ? 'Completed' : 'Pending'}
@@ -397,7 +445,7 @@ const ViewCoursePage: React.FC = () => {
                         Start this course now or explore more courses to continue your learning journey.
                     </p>
                     <Button variant="outline"
-                            className="text-white px-6 py-3 rounded-xl duration-300 font-semibold sm:text-lg">
+                        className="text-white px-6 py-3 rounded-xl duration-300 font-semibold sm:text-lg">
                         <Link href="/courses">Browse All Courses</Link>
                     </Button>
                 </div>
@@ -412,7 +460,9 @@ const ViewCoursePage: React.FC = () => {
                     </DialogHeader>
                     <Button
                         onClick={() => {
-                            localStorage.removeItem("token");
+                            if (typeof window !== "undefined") {
+                                localStorage.removeItem("token");
+                            }
                             router.push("/login");
                             logout();
                         }}

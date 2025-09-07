@@ -6,7 +6,7 @@ import {Button} from '@/components/ui/button';
 import {FiSearch} from 'react-icons/fi';
 import {FaHeart} from 'react-icons/fa';
 import {User} from "@/models/User";
-import {loggedUser, loggedUserResponse} from "@/services/AuthService";
+import {loggedUser} from "@/services/AuthService";
 import toast from "react-hot-toast";
 import {addToFavouriteService, removeFromFavouriteService} from "@/services/FavouriteService";
 import {useRouter} from "next/navigation";
@@ -15,24 +15,105 @@ import Loader from "@/components/Loader";
 import axios from "axios";
 import Script from "next/script";
 import Image from "next/image";
+import { Types } from 'mongoose';
+
+// Add Razorpay to the Window interface for TypeScript
+declare global {
+    interface Window {
+        Razorpay: RazorpayConstructor;
+    }
+}
+
+// Define a minimal Razorpay type for type safety
+interface RazorpayOptions {
+    key: string;
+    amount: number;
+    currency: string;
+    name?: string;
+    description?: string;
+    image?: string;
+    order_id?: string;
+    handler?: (response: {
+        razorpay_order_id: string;
+        razorpay_payment_id: string;
+        razorpay_signature: string;
+    }) => void | Promise<void>;
+    prefill?: {
+        name?: string;
+        email?: string;
+        contact?: string;
+    };
+    notes?: Record<string, unknown>;
+    theme?: {
+        color?: string;
+    };
+    [key: string]: unknown;
+}
+
+interface RazorpayInstance {
+    open: () => void;
+}
+
+interface RazorpayConstructor {
+    new (options: RazorpayOptions): RazorpayInstance;
+}
+
+type CartItem = {
+    _id: string;
+    Course_Name: string;
+    Description: string;
+    Price: number;
+    Image?: string;
+};
+
+interface LoggedUserResponse {
+    success: boolean;
+    User: User & { Favourite: (string | Types.ObjectId)[] };
+}
+
+interface FetchCartCourseResponse {
+    success: boolean;
+    Cart: CartItem[];
+}
+
+interface RazorpayOrder {
+    id: string;
+    amount: number;
+    currency: string;
+}
+
+interface RazorpayApiResponse {
+    order: RazorpayOrder;
+}
+
+interface RazorpayVerifyResponse {
+    data: {
+        success: boolean;
+    };
+}
+
+interface CheckoutCourseResponse {
+    success: boolean;
+    message?: string;
+}
 
 const CartPage: React.FC = () => {
-    const [searchQuery, setSearchQuery] = useState('');
-    const [likedCourses, setLikedCourses] = useState<[]>([]);
-    const [coursesCart, setCoursesCart] = useState<[]>([]);
+    const [searchQuery, setSearchQuery] = useState<string>('');
+    const [likedCourses, setLikedCourses] = useState<string[]>([]);
+    const [coursesCart, setCoursesCart] = useState<CartItem[]>([]);
     const [userData, setUserData] = useState<User>();
     const [isloding, setIsLoding] = useState<boolean>(true);
-    const [checkoutCourseData, setChckoutCourseData] = useState([]);
+    const [checkoutCourseData, setChckoutCourseData] = useState<string[]>([]);
 
     const router = useRouter();
 
     const fetchUserData = async () => {
         try {
-            const response: loggedUserResponse = await loggedUser();
+            const response = await loggedUser() as LoggedUserResponse;
 
-            if (response.success) {
+            if (response && response.success) {
                 setUserData(response.User);
-                setLikedCourses(response.User.Favourite);
+                setLikedCourses(response.User.Favourite.map((id: string | Types.ObjectId) => id.toString()));
             }
         } catch (error) {
             console.error(error);
@@ -41,7 +122,7 @@ const CartPage: React.FC = () => {
 
     const fetchCourseCart = async () => {
         try {
-            const response = await fetchCartCourse();
+            const response = await fetchCartCourse() as FetchCartCourseResponse;
 
             if (response.success) {
                 setCoursesCart(response.Cart);
@@ -99,19 +180,18 @@ const CartPage: React.FC = () => {
     );
 
     const totalPrice = filteredCartItems
-        .reduce((total, item) => total + item.Price, 0)
-        .toFixed(2);
+        .reduce((total, item) => total + item.Price, 0);
 
     const formattedPrice = new Intl.NumberFormat('en-IN', {
         style: 'currency',
         currency: 'INR',
-    }).format(totalPrice);
+    }).format(Number(totalPrice.toFixed(2)));
 
     const handleCheckout = async () => {
         try {
             const token = localStorage.getItem("token");
 
-            const { data } = await axios.post(
+            const { data } = await axios.post<RazorpayApiResponse>(
                 "/api/razorpay",
                 {
                     amount: 10,
@@ -120,34 +200,38 @@ const CartPage: React.FC = () => {
                     courseIds: checkoutCourseData, // ✅ pass array here
                 },
                 {
-                    headers: { Authorization: token },
+                    headers: { Authorization: token ?? "" },
                 }
             );
 
             const order = data.order;
 
-            const options = {
-                key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID!,
+            const options: RazorpayOptions = {
+                key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID as string,
                 amount: order.amount,
                 currency: order.currency,
                 name: "VK Learning Platform",
                 description: "Course Purchase",
                 order_id: order.id,
-                handler: async function (response) {
-                    const verifyRes = await axios.post("/api/razorpay/verify-payment", {
+                handler: async function (response: {
+                    razorpay_order_id: string;
+                    razorpay_payment_id: string;
+                    razorpay_signature: string;
+                }) {
+                    const verifyRes = await axios.post<RazorpayVerifyResponse>("/api/razorpay/verify-payment", {
                         razorpay_order_id: response.razorpay_order_id,
                         razorpay_payment_id: response.razorpay_payment_id,
                         razorpay_signature: response.razorpay_signature,
                     });
 
-                    if (verifyRes.data.success) {
+                    if (verifyRes.data.data.success) {
                         // ✅ Call checkoutCourse after verification
-                        const checkoutRes = await checkoutCourse({ courseIds: checkoutCourseData });
+                        const checkoutRes = await checkoutCourse({ courseIds: checkoutCourseData }) as CheckoutCourseResponse;
 
-                        if (checkoutRes.success) {
+                        if (checkoutRes && checkoutRes.success) {
                             toast.success("Payment Successful and Courses Added!");
-                        } else {
-                            toast.error(checkoutRes.message);
+                        } else if (checkoutRes) {
+                            toast.error(checkoutRes.message || "Something went wrong.");
                         }
                     } else {
                         toast.error("Payment verification failed.");

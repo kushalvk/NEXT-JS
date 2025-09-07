@@ -1,21 +1,24 @@
-import mongoose, {Document, Schema, Types} from "mongoose";
+import mongoose, { Document, Schema, Types, Model } from "mongoose";
 
-export interface Video extends Document {
+export interface Video {
     Video_Url: string;
     Description: string;
 }
 
-const VideoSchema: Schema<Video> = new Schema({
-    Video_Url: {
-        type: String,
-        required: [true, 'Video URL is required'],
-        trim: true,
+const VideoSchema = new Schema<Video>(
+    {
+        Video_Url: {
+            type: String,
+            required: [true, 'Video URL is required'],
+            trim: true,
+        },
+        Description: {
+            type: String,
+            required: [true, 'Description is required'],
+        }
     },
-    Description: {
-        type: String,
-        required: [true, 'Description is required'],
-    }
-})
+    { _id: false } // Prevents automatic _id for subdocuments unless needed
+);
 
 export interface Course extends Document {
     Image: string;
@@ -27,39 +30,45 @@ export interface Course extends Document {
     Video: Video[];
 }
 
-const CourseSchema: Schema<Course> = new Schema({
-    Image: {
-        type: String,
-        trim: true,
+const CourseSchema = new Schema<Course>(
+    {
+        Image: {
+            type: String,
+            trim: true,
+        },
+        Course_Name: {
+            type: String,
+            required: [true, 'Course Name is required'],
+            trim: true,
+        },
+        Description: {
+            type: String,
+            required: [true, 'Description is required'],
+            trim: true,
+        },
+        Department: {
+            type: String,
+            required: [true, 'Department is required'],
+            trim: true,
+        },
+        Price: {
+            type: Number,
+            default: 0,
+        },
+        Username: {
+            type: Schema.Types.ObjectId,
+            required: [true, 'Username is required'],
+            ref: 'users',
+        },
+        Video: {
+            type: [VideoSchema],
+            default: [],
+        },
     },
-    Course_Name: {
-        type: String,
-        required: [true, 'Course Name is required'],
-        trim: true,
-    },
-    Description: {
-        type: String,
-        required: [true, 'Description is required'],
-        trim: true,
-    },
-    Department: {
-        type: String,
-        required: [true, 'Department is required'],
-        trim: true,
-    },
-    Price: {
-        type: Number,
-        default: 0,
-    },
-    Username: {
-        type: Types.ObjectId,
-        required: [true, 'Username is required'],
-        ref: 'users',
-        trim: true,
-    },
-    Video: [VideoSchema],
-}, { timestamps: true });
+    { timestamps: true }
+);
 
-const CourseModel = mongoose.models.courses || mongoose.model<Course>('courses', CourseSchema);
+const CourseModel: Model<Course> =
+    mongoose.models.courses || mongoose.model<Course>('courses', CourseSchema);
 
 export default CourseModel;

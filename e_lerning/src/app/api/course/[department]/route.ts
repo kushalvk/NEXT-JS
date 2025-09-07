@@ -1,10 +1,14 @@
+import { NextRequest } from "next/server";
 import dbConnect from "@/app/lib/dbConnect";
 import CourseModel from "@/models/Course";
 
-export async function GET(req: Request, { params }: { params: { department: string } }) {
+export async function GET(
+  req: NextRequest,
+  context: { params: Promise<{ department: string }> }
+) {
     await dbConnect();
 
-    const department = params.department;
+    const {department} = await context.params;
 
     if (!department) {
         return new Response(

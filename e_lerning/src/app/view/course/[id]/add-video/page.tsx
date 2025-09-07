@@ -6,6 +6,7 @@ import { useParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import toast from "react-hot-toast";
 import {addVideo} from "@/services/CourseService";
+import { CourseResponse } from '@/utils/Responses';
 
 const AddVideoPage: React.FC = () => {
     const { id } = useParams();
@@ -20,17 +21,25 @@ const AddVideoPage: React.FC = () => {
         try {
             const formData = new FormData();
 
-            formData.append("courseId", id);
-            formData.append("Video", videoFile);
+            formData.append("courseId", Array.isArray(id) ? id[0] : id || "");
+            if (videoFile) {
+                formData.append("Video", videoFile);
+            }
             formData.append("Video_Description", description);
 
-            const response = await addVideo(formData);
+            const response = await addVideo(formData) as CourseResponse;
 
-            if (response.success) {
+            if (response?.success) {
                 toast.success('You successfully add Video to this course!');
+            } else {
+                toast.error(response?.message || "Something went wrong.");
             }
         } catch (error) {
-            toast.error(error.message);
+            if (error instanceof Error) {
+                toast.error(error.message);
+            } else {
+                toast.error("An unexpected error occurred.");
+            }
         } finally {
             toast.dismiss(loadingToastId);
             if (videoFile && description) {

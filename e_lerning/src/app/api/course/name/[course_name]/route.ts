@@ -1,20 +1,24 @@
 import dbConnect from "@/app/lib/dbConnect";
 import CourseModel from "@/models/Course";
+import { NextRequest } from "next/server";
 
-export async function GET(req: Request, { params }: { params: { course_name: string } }) {
+export async function GET(
+  req: NextRequest,
+  context: { params: Promise<{ course_name: string }> }
+) {
     await dbConnect();
 
     try {
-        const Course_Name = params.course_name;
+        const {course_name} = await context.params;
 
-        if (!Course_Name) {
+        if (!course_name) {
             return Response.json({
                 success: false,
                 message: "Course Name is required",
             }, {status: 400});
         }
 
-        const course = await CourseModel.find({Course_Name});
+        const course = await CourseModel.find({Course_Name: course_name});
 
         if (!course || course.length === 0) {
             return Response.json({
