@@ -1,6 +1,6 @@
 import dbConnect from "@/app/lib/dbConnect";
 import CourseModel from "@/models/Course";
-import cloudinary, { uploadBufferToCloudinary } from "@/utils/cloudinary";
+import { uploadBufferToCloudinary } from "@/utils/cloudinary";
 import {getVerifiedUser} from "@/utils/verifyRequest";
 import UserModel from "@/models/User";
 // ...existing code...

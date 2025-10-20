@@ -14,7 +14,7 @@ export async function uploadBufferToCloudinary(
     folder?: string
 ) {
     return new Promise((resolve, reject) => {
-        const options: Record<string, any> = { resource_type: resourceType };
+        const options: { resource_type: "image" | "video" | "auto"; folder?: string } = { resource_type: resourceType };
         if (folder) options.folder = folder;
         const uploadStream = cloudinary.uploader.upload_stream(
             options,

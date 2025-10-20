@@ -1,7 +1,7 @@
 import dbConnect from "@/app/lib/dbConnect";
 import CourseModel from "@/models/Course";
 import {getVerifiedUser} from "@/utils/verifyRequest";
-import cloudinary, { uploadBufferToCloudinary } from "@/utils/cloudinary";
+import { uploadBufferToCloudinary } from "@/utils/cloudinary";
 
 export async function PUT(req: Request) {
     await dbConnect();

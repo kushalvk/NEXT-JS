@@ -47,7 +47,7 @@ const FavoritePage: React.FC = () => {
         }
     };
 
-    const getFavourite = async () => {
+    const getFavourite = React.useCallback(async () => {
         try {
             const response = await getFavouriteService();
 
@@ -60,7 +60,7 @@ const FavoritePage: React.FC = () => {
         } finally {
             setIsLoding(false);
         }
-    }
+    }, []);
 
     useEffect(() => {
         fetchUserData();
