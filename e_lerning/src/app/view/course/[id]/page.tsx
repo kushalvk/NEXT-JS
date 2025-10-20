@@ -42,6 +42,7 @@ const ViewCoursePage: React.FC = () => {
     const [CourseData, setCourseData] = useState<CourseCard | undefined>();
     const [isBuyed, setIsBuyed] = useState<boolean>(false);
     const [shouldFetchUserData, setShouldFetchUserData] = useState(false);
+    const [progressLoading, setProgressLoading] = useState(false);
     const [showLoginPopup, setShowLoginPopup] = useState(false);
     const [isInCart, setIsInCart] = useState<boolean>(false);
     const [userUploded, setUserUploded] = useState<boolean>(false);
@@ -133,19 +134,41 @@ const ViewCoursePage: React.FC = () => {
         const progress = (videoElement.currentTime / videoElement.duration) * 100 || 0;
 
         if (progress >= 100 && userData) {
-            const watched = userData.Watched_Course?.find(
-                (entry: WatchedCourseType) =>
-                    entry.courseId === id ||
-                    (typeof entry.courseId === 'object' && (entry.courseId as { _id: string })._id === id)
-            );
+            // Find the watched course entry for this course
+            let watchedCourse: WatchedCourseType | undefined;
+            if (userData?.Watched_Course) {
+                watchedCourse = userData.Watched_Course.find((item: WatchedCourseType) => {
+                    if (typeof item.courseId === 'string') {
+                        return item.courseId === id;
+                    }
+                    if (typeof item.courseId === 'object' && (item.courseId as { _id: string })._id) {
+                        return (item.courseId as { _id: string })._id === id;
+                    }
+                    return false;
+                });
+            }
 
-            const alreadyCompleted = watched?.completedVideos?.map((Id) => Id.toString()).includes(id.toString());
+            // Check if this video is already completed
+            let alreadyCompleted = false;
+            if (watchedCourse && Array.isArray(watchedCourse.completedVideos)) {
+                alreadyCompleted = watchedCourse.completedVideos.some((vid) => {
+                    if (typeof vid === 'string') return vid === videoId;
+                    if (typeof vid === 'object' && vid?.toString) return vid.toString() === videoId;
+                    return false;
+                });
+            }
+
             if (!alreadyCompleted) {
+                setProgressLoading(true);
                 try {
                     await completeVideoApi(id, videoId);
-                    setShouldFetchUserData(true);
+                    // Optimistically update local userData for instant UI feedback
+                    // Only refetch user data for UI update
+                    setShouldFetchUserData(true); // refetch for backend sync
                 } catch (err) {
                     console.error("Failed to mark video complete", err);
+                } finally {
+                    setProgressLoading(false);
                 }
             }
         }
@@ -182,20 +205,38 @@ const ViewCoursePage: React.FC = () => {
         );
     }
 
-    let courseProgress = 0;
-    if (userData && CourseData) {
-        const watched = userData?.Watched_Course?.find(
-            (entry: WatchedCourseType) =>
-                entry.courseId === id ||
-                (typeof entry.courseId === 'object' && (entry.courseId as { _id: string })._id === id)
+    if (progressLoading) {
+        return (
+            <div className="flex h-screen w-screen bg-blue-900 justify-center items-center">
+                <Loader />
+                <span className="ml-4 text-white text-lg">Updating progress...</span>
+            </div>
         );
-        if (watched) {
-            const completedVideos = watched.completedVideos?.length || 0;
-            const totalVideos = CourseData.Video?.length || 0;
-            if (totalVideos > 0) {
-                courseProgress = (completedVideos / totalVideos) * 100;
+    }
+
+    // Helper: get completedVideos array for this course from userData
+    let completedVideosArr: string[] = [];
+    if (userData && userData.Watched_Course) {
+        const watchedCourse = userData.Watched_Course.find((entry) => {
+            if (typeof entry.courseId === 'string') {
+                return entry.courseId === id;
             }
+            if (typeof entry.courseId === 'object' && entry.courseId && '_id' in entry.courseId) {
+                return String((entry.courseId as any)._id) === String(id);
+            }
+            return false;
+        });
+        if (watchedCourse && Array.isArray(watchedCourse.completedVideos)) {
+            completedVideosArr = watchedCourse.completedVideos.map((vid) => String(vid));
         }
+    }
+
+    // Calculate course progress based on completedVideosArr
+    let courseProgress = 0;
+    if (CourseData && Array.isArray(CourseData.Video) && CourseData.Video.length > 0) {
+        const totalVideos = CourseData.Video.length;
+        const completedVideos = CourseData.Video.filter((video: Video) => completedVideosArr.includes(String((video as Video).Video_Url))).length;
+        courseProgress = (completedVideos / totalVideos) * 100;
     }
 
     const handleBuyCourse = async (courseId: string) => {
@@ -383,20 +424,10 @@ const ViewCoursePage: React.FC = () => {
                             ) : (
                                 <div className="space-y-6">
                                     {CourseData.Video.map((video: Video) => {
-                                        const { _id, Video_Url, Description } = video as VideoWithId;
-                                        const videoId = _id;
-                                        const watchedCourse = userData?.Watched_Course?.find(
-                                            (item: WatchedCourseType) =>
-                                                item.courseId === id ||
-                                                (typeof item.courseId === 'object' && (item.courseId as { _id: string })._id === id)
-                                        );
-
-                                        const isCompleted = watchedCourse?.completedVideos?.some(
-                                            (vid: string | { toString(): string }) =>
-                                                vid === videoId ||
-                                                (typeof vid === 'object' && vid?.toString() === videoId)
-                                        );
-
+                                        const { Video_Url, Description } = video as Video;
+                                        const videoId = Video_Url;
+                                        // Use completedVideosArr for status
+                                        const isCompleted = completedVideosArr.includes(String(videoId));
                                         return (
                                             <div
                                                 key={videoId}
@@ -421,9 +452,9 @@ const ViewCoursePage: React.FC = () => {
                                                 <div className="flex-1">
                                                     <p className="text-gray-400 text-sm sm:text-base mb-2">{Description}</p>
                                                     {!userUploded && (
-                                                        <p className={`text-sm font-semibold ${isCompleted ? 'text-green-400' : 'text-yellow-400'}`}>
-                                                            Status: {isCompleted ? 'Completed' : 'Pending'}
-                                                        </p>
+                                                        <span className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${isCompleted ? 'bg-green-600 text-white' : 'bg-gray-400 text-gray-900'}`}>
+                                                            Status: {isCompleted ? 'Completed' : 'Not Completed'}
+                                                        </span>
                                                     )}
                                                 </div>
                                             </div>

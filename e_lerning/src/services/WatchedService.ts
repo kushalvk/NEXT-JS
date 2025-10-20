@@ -11,8 +11,8 @@ export const completeVideoApi = async (courseId: string, videoId: string): Promi
 
     const response = await axios.post<CommonApiResponse>("/api/progress/watch", formData, {
         headers: {
+            // send token as provided in localStorage (other parts of the app use the same header)
             authorization: `${token}`,
-            "Content-Type": "multipart/form-data",
         },
     });
 

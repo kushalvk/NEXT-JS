@@ -19,7 +19,7 @@ const Buy_Course_Schema = new Schema<BuyCourse>({
 
 export interface WatchedCourse extends Document {
     courseId: mongoose.Types.ObjectId;
-    completedVideos: mongoose.Types.ObjectId[];
+    completedVideos: string[];
     completedAt?: Date | null;
 }
 
@@ -29,8 +29,9 @@ const Watched_Course_Schema = new Schema<WatchedCourse>({
         ref: "courses",
         required: true,
     },
+    // Store video identifiers (e.g., Video_Url) as strings
     completedVideos: [{
-        type: Schema.Types.ObjectId,
+        type: String,
         required: true,
     }],
     completedAt: {

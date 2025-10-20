@@ -2,6 +2,7 @@ import dbConnect from "@/app/lib/dbConnect";
 import {getVerifiedUser} from "@/utils/verifyRequest";
 import UserModel, { BuyCourse } from "@/models/User";
 import CourseModel, { Video } from "@/models/Course";
+import mongoose from "mongoose";
 
 export async function POST(req: Request) {
     await dbConnect();
@@ -20,6 +21,14 @@ export async function POST(req: Request) {
                 success: false,
                 message: "Course Id & Video Id is required",
             }, {status: 400});
+        }
+
+        // Validate courseId is a valid ObjectId
+        if (!mongoose.Types.ObjectId.isValid(courseId)) {
+            return Response.json({
+                success: false,
+                message: "Invalid courseId",
+            }, { status: 400 });
         }
 
         if (!user?.Buy_Course?.some((item: BuyCourse) => item.courseId.toString() === courseId)) {
@@ -43,33 +52,51 @@ export async function POST(req: Request) {
             message: "This video does not exist in the course",
         }, {status: 404});
 
-        const result = await UserModel.findOneAndUpdate(
-            {
-                _id: user._id,
-                "Watched_Course.courseId": courseId,
-            },
-            {
-                $addToSet: {
-                    "Watched_Course.$.completedVideos": videoId,
-                },
-            },
-            {new: true}
-        );
+        // Use native collection updates to avoid Mongoose casting issues
+        let userObjectId: mongoose.Types.ObjectId;
+        let courseObjectId: mongoose.Types.ObjectId;
+        try {
+            if (!mongoose.Types.ObjectId.isValid(String(user._id))) {
+                return Response.json({ success: false, message: 'Invalid user id' }, { status: 401 });
+            }
+            userObjectId = new mongoose.Types.ObjectId(user._id);
+            courseObjectId = new mongoose.Types.ObjectId(courseId);
+        } catch (err) {
+            console.error('Invalid ObjectId conversion', err);
+            return Response.json({ success: false, message: 'Invalid id format' }, { status: 400 });
+        }
 
-        // If no course progress found, add new one
-        if (!result) {
-            await UserModel.updateOne(
-                {_id: user._id},
+        try {
+            const result = await UserModel.collection.updateOne(
                 {
-                    $push: {
-                        Watched_Course: {
-                            courseId,
-                            completedVideos: [videoId],
-                            completedAt: null,
-                        },
+                    _id: userObjectId,
+                    "Watched_Course.courseId": courseObjectId,
+                },
+                {
+                    $addToSet: {
+                        "Watched_Course.$.completedVideos": videoId,
                     },
                 }
             );
+
+            // If no course progress found (no matched array element), push a new Watched_Course entry
+            if (result.matchedCount === 0) {
+                await UserModel.collection.updateOne(
+                    { _id: userObjectId },
+                    {
+                        $push: {
+                            Watched_Course: {
+                                courseId: courseObjectId,
+                                completedVideos: [videoId],
+                                completedAt: null,
+                            },
+                        },
+                    } as any
+                );
+            }
+        } catch (err) {
+            console.error('Error updating user progress collection', err);
+            return Response.json({ success: false, message: 'Failed to update progress' }, { status: 500 });
         }
 
         return Response.json({

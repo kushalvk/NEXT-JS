@@ -1,7 +1,12 @@
 import {verifyToken} from "@/middleware/verifyToken";
 
 export async function getVerifiedUser(req: Request) {
-    const token = req.headers.get("authorization");
+    let token = req.headers.get("authorization");
+
+    // Accept headers like 'Bearer <token>' or raw token
+    if (token && token.toLowerCase().startsWith('bearer ')) {
+        token = token.slice(7);
+    }
 
     if (!token) {
         return {

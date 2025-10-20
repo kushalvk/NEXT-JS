@@ -16,7 +16,17 @@ export async function GET(req: Request) {
             }, {status: 404});
         }
 
-        const User = await UserModel.findById(user._id);
+        let User = await UserModel.findById(user._id).lean();
+        // Ensure completedVideos is always present as an array for each Watched_Course
+        // also ensure User is not an array (narrow the union) before accessing Watched_Course
+        if (User && !Array.isArray(User) && Array.isArray(User.Watched_Course)) {
+            User.Watched_Course = User.Watched_Course.map((entry) => {
+                if (!Array.isArray(entry.completedVideos)) {
+                    return { ...entry, completedVideos: [] };
+                }
+                return entry;
+            });
+        }
 
         return Response.json({
             success: true,
