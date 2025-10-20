@@ -1,10 +1,7 @@
 import dbConnect from "@/app/lib/dbConnect";
 import CourseModel from "@/models/Course";
 import {getVerifiedUser} from "@/utils/verifyRequest";
-import path from "path";
-import {unlink, writeFile} from "fs/promises";
-import cloudinary from "@/utils/cloudinary";
-import os from "os";
+import cloudinary, { uploadBufferToCloudinary } from "@/utils/cloudinary";
 
 export async function PUT(req: Request) {
     await dbConnect();
@@ -52,16 +49,7 @@ export async function PUT(req: Request) {
 
         const bytes = await file.arrayBuffer();
         const buffer = Buffer.from(bytes);
-    // Use os.tmpdir() for temp file storage for cross-platform compatibility
-    const tempFilePath = path.join(os.tmpdir(), `${Date.now()}-${file.name}`);
-        await writeFile(tempFilePath, buffer);
-
-        const result = await cloudinary.uploader.upload(tempFilePath, {
-            resource_type: "video",
-            folder: "courses",
-        });
-
-        await unlink(tempFilePath);
+    const result = await uploadBufferToCloudinary(buffer, "video", "courses") as { secure_url: string };
 
         const updatedCourse = await CourseModel.findOneAndUpdate(
             {_id: courseId},

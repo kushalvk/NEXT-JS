@@ -1,12 +1,9 @@
 import dbConnect from "@/app/lib/dbConnect";
 import CourseModel from "@/models/Course";
-import {writeFile} from "fs/promises";
-import cloudinary from "@/utils/cloudinary";
+import cloudinary, { uploadBufferToCloudinary } from "@/utils/cloudinary";
 import {getVerifiedUser} from "@/utils/verifyRequest";
 import UserModel from "@/models/User";
-import path from "path";
-import {unlink} from "fs/promises";
-import os from "os";
+// ...existing code...
 
 export async function POST(req: Request) {
     await dbConnect();
@@ -34,30 +31,11 @@ export async function POST(req: Request) {
 
         const bytesVideo = await video.arrayBuffer();
         const bufferVideo = Buffer.from(bytesVideo);
-
-    // Use os.tmpdir() for temp file storage for cross-platform compatibility
-    const tempFilePathVideo = path.join(os.tmpdir(), `${Date.now()}-${video.name}`);
-        await writeFile(tempFilePathVideo, bufferVideo);
-
-        const resultVideo = await cloudinary.uploader.upload(tempFilePathVideo, {
-            resource_type: "video",
-            folder: "courses",
-        });
-
-        await unlink(tempFilePathVideo);
+    const resultVideo = await uploadBufferToCloudinary(bufferVideo, "video", "courses") as { secure_url: string };
 
         const bytesImage = await image.arrayBuffer();
         const bufferImage = Buffer.from(bytesImage);
-
-    const tempFilePathImage = path.join(os.tmpdir(), `${Date.now()}-${image.name}`);
-        await writeFile(tempFilePathImage, bufferImage);
-
-        const resultImage = await cloudinary.uploader.upload(tempFilePathImage, {
-            resource_type: "image",
-            folder: "courses",
-        });
-
-        await unlink(tempFilePathImage);
+    const resultImage = await uploadBufferToCloudinary(bufferImage, "image", "courses") as { secure_url: string };
 
         const Course_Name = formData.get("Course_Name")?.toString() || "";
         const Description = formData.get("Description")?.toString() || "";
@@ -225,15 +203,7 @@ export async function PATCH(req: Request) {
 
         const bytes = await file.arrayBuffer();
         const buffer = Buffer.from(bytes);
-    const tempFilePath = path.join(os.tmpdir(), `${Date.now()}-${file.name}`);
-        await writeFile(tempFilePath, buffer);
-
-        const result = await cloudinary.uploader.upload(tempFilePath, {
-            resource_type: "video",
-            folder: "courses",
-        });
-
-        await unlink(tempFilePath);
+    const result = await uploadBufferToCloudinary(buffer, "video", "courses") as { secure_url: string };
 
         const videoData = {
             Video_Url: result.secure_url,
