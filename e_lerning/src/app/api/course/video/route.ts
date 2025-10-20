@@ -41,6 +41,14 @@ export async function PUT(req: Request) {
             }, {status: 403});
         }
 
+        // Limit video size to 30MB
+        if (file.size > 30 * 1024 * 1024) {
+            return Response.json({
+                success: false,
+                message: "Video file size must be 30MB or less.",
+            }, { status: 400 });
+        }
+
         const bytes = await file.arrayBuffer();
         const buffer = Buffer.from(bytes);
         const tempFilePath = path.join(process.cwd(), "public/uploads/videos", `${Date.now()}-${file.name}`);

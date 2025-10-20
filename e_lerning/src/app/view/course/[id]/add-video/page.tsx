@@ -16,6 +16,11 @@ const AddVideoPage: React.FC = () => {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
+        if (videoFile && videoFile.size > 30 * 1024 * 1024) {
+            toast.error("Video file size must be 30MB or less.");
+            return;
+        }
+
         const loadingToastId = toast.loading("Please wait while we finalize the details...");
 
         try {
