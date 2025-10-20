@@ -6,6 +6,7 @@ import {getVerifiedUser} from "@/utils/verifyRequest";
 import UserModel from "@/models/User";
 import path from "path";
 import {unlink} from "fs/promises";
+import os from "os";
 
 export async function POST(req: Request) {
     await dbConnect();
@@ -34,7 +35,8 @@ export async function POST(req: Request) {
         const bytesVideo = await video.arrayBuffer();
         const bufferVideo = Buffer.from(bytesVideo);
 
-        const tempFilePathVideo = path.join(process.cwd(), "public/uploads/videos", `${Date.now()}-${video.name}`);
+    // Use os.tmpdir() for temp file storage for cross-platform compatibility
+    const tempFilePathVideo = path.join(os.tmpdir(), `${Date.now()}-${video.name}`);
         await writeFile(tempFilePathVideo, bufferVideo);
 
         const resultVideo = await cloudinary.uploader.upload(tempFilePathVideo, {
@@ -47,7 +49,7 @@ export async function POST(req: Request) {
         const bytesImage = await image.arrayBuffer();
         const bufferImage = Buffer.from(bytesImage);
 
-        const tempFilePathImage = path.join(process.cwd(), "public/uploads/image", `${Date.now()}-${image.name}`);
+    const tempFilePathImage = path.join(os.tmpdir(), `${Date.now()}-${image.name}`);
         await writeFile(tempFilePathImage, bufferImage);
 
         const resultImage = await cloudinary.uploader.upload(tempFilePathImage, {
@@ -223,7 +225,7 @@ export async function PATCH(req: Request) {
 
         const bytes = await file.arrayBuffer();
         const buffer = Buffer.from(bytes);
-        const tempFilePath = path.join(process.cwd(), "public/uploads/videos", `${Date.now()}-${file.name}`);
+    const tempFilePath = path.join(os.tmpdir(), `${Date.now()}-${file.name}`);
         await writeFile(tempFilePath, buffer);
 
         const result = await cloudinary.uploader.upload(tempFilePath, {

@@ -4,6 +4,7 @@ import {getVerifiedUser} from "@/utils/verifyRequest";
 import path from "path";
 import {unlink, writeFile} from "fs/promises";
 import cloudinary from "@/utils/cloudinary";
+import os from "os";
 
 export async function PUT(req: Request) {
     await dbConnect();
@@ -51,7 +52,8 @@ export async function PUT(req: Request) {
 
         const bytes = await file.arrayBuffer();
         const buffer = Buffer.from(bytes);
-        const tempFilePath = path.join(process.cwd(), "public/uploads/videos", `${Date.now()}-${file.name}`);
+    // Use os.tmpdir() for temp file storage for cross-platform compatibility
+    const tempFilePath = path.join(os.tmpdir(), `${Date.now()}-${file.name}`);
         await writeFile(tempFilePath, buffer);
 
         const result = await cloudinary.uploader.upload(tempFilePath, {
