@@ -31,7 +31,7 @@ type UserType = User & {
     Upload_Course?: (string | number)[];
     Watched_Course?: WatchedCourseType[];
 };
-type VideoWithId = Video & { _id: string };
+// Removed unused VideoWithId type
 
 const ViewCoursePage: React.FC = () => {
     const params = useParams();
@@ -221,8 +221,14 @@ const ViewCoursePage: React.FC = () => {
             if (typeof entry.courseId === 'string') {
                 return entry.courseId === id;
             }
-            if (typeof entry.courseId === 'object' && entry.courseId && '_id' in entry.courseId) {
-                return String((entry.courseId as any)._id) === String(id);
+            if (
+                typeof entry.courseId === 'object' &&
+                entry.courseId &&
+                '_id' in entry.courseId &&
+                typeof (entry.courseId as { _id: unknown })._id !== 'undefined'
+            ) {
+                const objectId = ((entry.courseId as unknown) as { _id: string | number })._id;
+                return String(objectId) === String(id);
             }
             return false;
         });

@@ -91,7 +91,7 @@ export async function POST(req: Request) {
                                 completedAt: null,
                             },
                         },
-                    } as any
+                    } as Partial<{ Watched_Course: { courseId: mongoose.Types.ObjectId, completedVideos: string[], completedAt: null } }>
                 );
             }
         } catch (err) {

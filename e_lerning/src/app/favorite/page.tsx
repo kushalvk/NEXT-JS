@@ -65,7 +65,7 @@ const FavoritePage: React.FC = () => {
     useEffect(() => {
         fetchUserData();
         getFavourite();
-    }, []);
+    }, [getFavourite]);
 
     const favoriteCourses = favouriteCourses;
 
