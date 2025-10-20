@@ -11,45 +11,43 @@ export async function POST(req: Request) {
     try {
         const formData = await req.formData();
 
-        const video = formData.get("Video") as File;
-        const image = formData.get("Image") as File;
+        const video = formData.get("Video") as File | null;
+        const image = formData.get("Image") as File | null;
 
         if (!video && !image) {
             return Response.json({
                 success: false,
-                message: "video & Image are required",
+                message: "At least one file (video or image) is required.",
             }, {status: 400});
         }
 
-        // Limit video size to 30MB
-        if (video.size > 30 * 1024 * 1024) {
-            return Response.json({
-                success: false,
-                message: "Video file size must be 30MB or less.",
-            }, { status: 400 });
+        let resultVideo: { secure_url: string } | null = null;
+        let resultImage: { secure_url: string } | null = null;
+
+        if (video) {
+            // Limit video size to 30MB
+            if (video.size > 30 * 1024 * 1024) {
+                return Response.json({
+                    success: false,
+                    message: "Video file size must be 30MB or less.",
+                }, { status: 400 });
+            }
+            const bytesVideo = await video.arrayBuffer();
+            const bufferVideo = Buffer.from(bytesVideo);
+            resultVideo = await uploadBufferToCloudinary(bufferVideo, "video", "courses") as { secure_url: string };
         }
 
-        const bytesVideo = await video.arrayBuffer();
-        const bufferVideo = Buffer.from(bytesVideo);
-    const resultVideo = await uploadBufferToCloudinary(bufferVideo, "video", "courses") as { secure_url: string };
-
-        const bytesImage = await image.arrayBuffer();
-        const bufferImage = Buffer.from(bytesImage);
-    const resultImage = await uploadBufferToCloudinary(bufferImage, "image", "courses") as { secure_url: string };
+        if (image) {
+            const bytesImage = await image.arrayBuffer();
+            const bufferImage = Buffer.from(bytesImage);
+            resultImage = await uploadBufferToCloudinary(bufferImage, "image", "courses") as { secure_url: string };
+        }
 
         const Course_Name = formData.get("Course_Name")?.toString() || "";
         const Description = formData.get("Description")?.toString() || "";
         const Department = formData.get("Department")?.toString() || "";
         const Video_Description = formData.get("Video_Description")?.toString() || "";
         const Price = formData.get("Price")?.toString() || "";
-
-        console.log(image);
-        console.log(video);
-        console.log(Course_Name);
-        console.log(Description);
-        console.log(Department);
-        console.log(Video_Description);
-        console.log(Price);
 
         if (!(Course_Name && Description && Department)) {
             return Response.json({
@@ -62,16 +60,16 @@ export async function POST(req: Request) {
         if (errorResponse) return errorResponse;
 
         const newCourse = new CourseModel({
-            Image: resultImage.secure_url,
+            Image: resultImage ? resultImage.secure_url : undefined,
             Course_Name,
             Description,
             Department,
             Price,
             Username: user._id,
-            Video: {
+            Video: resultVideo ? {
                 Video_Url: resultVideo.secure_url,
                 Description: Video_Description
-            },
+            } : undefined,
         });
 
         await newCourse.save();
