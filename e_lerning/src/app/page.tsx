@@ -2,7 +2,6 @@
 
 import React, {useEffect, useState} from 'react';
 import Link from 'next/link';
-import {Button} from "@/components/ui/button";
 import {useRouter} from "next/navigation";
 import Image from "next/image";
 
