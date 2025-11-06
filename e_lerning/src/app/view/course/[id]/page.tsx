@@ -4,513 +4,517 @@ import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { FaHeart } from 'react-icons/fa';
+import { FaHeart, FaPlayCircle } from 'react-icons/fa';
 import { loggedUser, loggedUserResponse } from '@/services/AuthService';
 import { User } from '@/models/User';
 import { CourseCard, CourseResponse, UserResponse } from '@/utils/Responses';
-import { addToCartCourse, buyCourse, getCourseById, RemoveFromCartCourse } from '@/services/CourseService';
-import Loader from "@/components/Loader";
-import toast from "react-hot-toast";
-import { addToFavouriteService, removeFromFavouriteService } from "@/services/FavouriteService";
+import {
+    addToCartCourse,
+    buyCourse,
+    getCourseById,
+    RemoveFromCartCourse,
+} from '@/services/CourseService';
+import Loader from '@/components/Loader';
+import toast from 'react-hot-toast';
+import {
+    addToFavouriteService,
+    removeFromFavouriteService,
+} from '@/services/FavouriteService';
 import { completeVideoApi } from '@/services/WatchedService';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { useAuth } from "@/context/AuthContext";
-import Image from "next/image";
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
+import { useAuth } from '@/context/AuthContext';
+import Image from 'next/image';
 import { Video } from '@/models/Course';
+import { motion } from 'framer-motion';
+import { Types } from 'mongoose';
 
-// Define types to replace 'any'
-type BuyCourseType = { courseId: string | { _id: string } };
-type WatchedCourseType = {
-    courseId: string | { _id: string };
-    completedVideos?: (string | { toString(): string })[];
-};
-type UserType = User & {
-    Buy_Course?: BuyCourseType[];
-    Favourite?: (string | number)[];
-    Cart?: (string | number)[];
-    Upload_Course?: (string | number)[];
-    Watched_Course?: WatchedCourseType[];
-};
-// Removed unused VideoWithId type
+interface BuyCourse {
+    courseId: Types.ObjectId;
+    buyDate: Date;
+}
+
+interface WatchedCourse {
+    courseId: Types.ObjectId;
+    completedVideos: string[];
+    completedAt?: Date | null;
+}
+
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-expect-error
+interface UserType extends User {
+    Buy_Course?: BuyCourse[];
+    Watched_Course?: WatchedCourse[];
+    Favourite?: Types.ObjectId[];
+    Cart?: Types.ObjectId[];
+    Upload_Course?: Types.ObjectId[];
+}
 
 const ViewCoursePage: React.FC = () => {
     const params = useParams();
-    const id = typeof params.id === 'string' ? params.id : Array.isArray(params.id) ? params.id[0] : '';
-    const [likedCourses, setLikedCourses] = useState<boolean>(false);
-    const videoRefs = useRef<{ [key: string]: HTMLVideoElement | null }>({});
-    const [userData, setUserData] = useState<UserType | undefined>();
-    const [CourseData, setCourseData] = useState<CourseCard | undefined>();
-    const [isBuyed, setIsBuyed] = useState<boolean>(false);
-    const [shouldFetchUserData, setShouldFetchUserData] = useState(false);
-    const [progressLoading, setProgressLoading] = useState(false);
-    const [showLoginPopup, setShowLoginPopup] = useState(false);
-    const [isInCart, setIsInCart] = useState<boolean>(false);
-    const [userUploded, setUserUploded] = useState<boolean>(false);
-
     const router = useRouter();
     const { logout } = useAuth();
 
-    const fetchUserData = async () => {
+    const id = Array.isArray(params.id) ? params.id[0] : (params.id as string) || '';
+
+    const [liked, setLiked] = useState(false);
+    const [userData, setUserData] = useState<UserType | null>(null);
+    const [course, setCourse] = useState<CourseCard | null>(null);
+    const [isPurchased, setIsPurchased] = useState(false);
+    const [isInCart, setIsInCart] = useState(false);
+    const [isUploadedByUser, setIsUploadedByUser] = useState(false);
+    const [refetchUser, setRefetchUser] = useState(false);
+    const [savingProgress, setSavingProgress] = useState(false);
+    const [showLoginDialog, setShowLoginDialog] = useState(false);
+
+    // Perfectly typed ref
+    const videoRefs = useRef<{ [key: string]: HTMLVideoElement | null }>({});
+
+    const fetchUser = async () => {
         try {
-            const response = await loggedUser() as loggedUserResponse;
-            if (response && response.success) {
-                const user = response.User as UserType;
+            const res = (await loggedUser()) as loggedUserResponse;
+            if (res?.success && res.User) {
+                const user = res.User as UserType;
                 setUserData(user);
-                // Defensive: courseId can be string or object
-                if (
-                    Array.isArray(user.Buy_Course) &&
-                    user.Buy_Course.some(
-                        (course: BuyCourseType) =>
-                            course.courseId === id ||
-                            (typeof course.courseId === 'object' && (course.courseId as { _id: string })._id === id)
-                    )
-                ) {
-                    setIsBuyed(true);
-                }
-                if (Array.isArray(user.Favourite) && user.Favourite.map((Id) => Id.toString()).includes(id.toString())) {
-                    setLikedCourses(true);
-                }
-                if (Array.isArray(user.Cart) && user.Cart.map((Id) => Id.toString()).includes(id.toString())) {
-                    setIsInCart(true);
-                }
-                if (Array.isArray(user.Upload_Course) && user.Upload_Course.map((Id) => Id.toString()).includes(id.toString())) {
-                    setUserUploded(true);
-                }
+
+                const strId = id.toString();
+
+                setIsPurchased(
+                    user.Buy_Course?.some((c) => c.courseId.toString() === strId) ?? false
+                );
+                setLiked(user.Favourite?.some((fid) => fid.toString() === strId) ?? false);
+                setIsInCart(user.Cart?.some((cid) => cid.toString() === strId) ?? false);
+                setIsUploadedByUser(
+                    user.Upload_Course?.some((uid) => uid.toString() === strId) ?? false
+                );
             }
-        } catch (error) {
-            console.error(error);
+        } catch (err) {
+            console.error(err);
         }
     };
 
     useEffect(() => {
-        const fetchCourseData = async () => {
-            try {
-                const response = await getCourseById(id) as CourseResponse;
-                if (response && response.success) {
-                    setCourseData(response.course as unknown as CourseCard);
-                }
-            } catch (error) {
-                console.error(error);
-            }
-        };
+        if (!id) return;
 
-        if (id) {
-            fetchCourseData();
-            fetchUserData();
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+        const load = async () => {
+            try {
+                const res = (await getCourseById(id)) as CourseResponse;
+                if (res?.success) setCourse(res.course as CourseCard);
+            } catch (err) {
+                console.log(err);
+                toast.error('Failed to load course');
+            }
+            await fetchUser();
+        };
+        load();
     }, [id]);
 
     useEffect(() => {
-        if (shouldFetchUserData) {
-            fetchUserData();
-            setShouldFetchUserData(false);
+        if (refetchUser) {
+            fetchUser();
+            setRefetchUser(false);
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [shouldFetchUserData]);
+    }, [refetchUser]);
 
-    const toggleLike = async (courseId: string) => {
+    const toggleFavorite = async () => {
         if (!userData) {
             router.push('/login');
-            toast("Please Login first", { icon: '⚠️' });
+            toast('Please login first', { icon: 'Warning' });
             return;
         }
-
         try {
-            if (likedCourses) {
-                setLikedCourses(false);
-                await removeFromFavouriteService({ courseId });
+            if (liked) {
+                await removeFromFavouriteService({ courseId: id });
             } else {
-                setLikedCourses(true);
-                await addToFavouriteService({ courseId });
+                await addToFavouriteService({ courseId: id });
             }
-        } catch (error) {
-            console.error("Failed to toggle like:", error);
+            setLiked(!liked);
+        } catch (err) {
+            console.log(err);
+            toast.error('Failed to update favorite');
         }
     };
 
-    const handleTimeUpdate = async (videoId: string, videoElement: HTMLVideoElement) => {
-        if (!videoElement || !videoElement.duration) return;
-        const progress = (videoElement.currentTime / videoElement.duration) * 100 || 0;
+    const handleVideoProgress = async (videoUrl: string, videoEl: HTMLVideoElement) => {
+        if (!videoEl?.duration || videoEl.currentTime / videoEl.duration < 0.98) return;
 
-        if (progress >= 100 && userData) {
-            // Find the watched course entry for this course
-            let watchedCourse: WatchedCourseType | undefined;
-            if (userData?.Watched_Course) {
-                watchedCourse = userData.Watched_Course.find((item: WatchedCourseType) => {
-                    if (typeof item.courseId === 'string') {
-                        return item.courseId === id;
-                    }
-                    if (typeof item.courseId === 'object' && (item.courseId as { _id: string })._id) {
-                        return (item.courseId as { _id: string })._id === id;
-                    }
-                    return false;
-                });
-            }
+        const alreadyDone = userData?.Watched_Course?.some(
+            (wc) => wc.courseId.toString() === id && wc.completedVideos.includes(videoUrl)
+        );
+        if (alreadyDone) return;
 
-            // Check if this video is already completed
-            let alreadyCompleted = false;
-            if (watchedCourse && Array.isArray(watchedCourse.completedVideos)) {
-                alreadyCompleted = watchedCourse.completedVideos.some((vid) => {
-                    if (typeof vid === 'string') return vid === videoId;
-                    if (typeof vid === 'object' && vid?.toString) return vid.toString() === videoId;
-                    return false;
-                });
-            }
-
-            if (!alreadyCompleted) {
-                setProgressLoading(true);
-                try {
-                    await completeVideoApi(id, videoId);
-                    // Optimistically update local userData for instant UI feedback
-                    // Only refetch user data for UI update
-                    setShouldFetchUserData(true); // refetch for backend sync
-                } catch (err) {
-                    console.error("Failed to mark video complete", err);
-                } finally {
-                    setProgressLoading(false);
-                }
-            }
+        setSavingProgress(true);
+        try {
+            await completeVideoApi(id, videoUrl);
+            setRefetchUser(true);
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setSavingProgress(false);
         }
     };
 
-    const handlePlay = (videoId: string) => {
-        const video = videoRefs.current[videoId];
-        if (!video) return;
-
-        if (!document.fullscreenElement) {
-            video.requestFullscreen().then(() => {
-                video.play().catch((err) => console.error('Video play failed:', err));
-            }).catch((err) => console.error('Fullscreen request failed:', err));
+    const playFullscreen = (videoUrl: string) => {
+        const vid = videoRefs.current[videoUrl];
+        if (vid && !document.fullscreenElement) {
+            vid.requestFullscreen().catch(() => {});
         }
     };
 
     useEffect(() => {
-        const handleFullscreenChange = () => {
+        const exitFs = () => {
             if (!document.fullscreenElement) {
-                Object.values(videoRefs.current).forEach((video) => {
-                    if (video && !video.paused) video.pause();
-                });
+                Object.values(videoRefs.current).forEach((v) => v?.pause());
             }
         };
-        document.addEventListener('fullscreenchange', handleFullscreenChange);
-        return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+        document.addEventListener('fullscreenchange', exitFs);
+        return () => document.removeEventListener('fullscreenchange', exitFs);
     }, []);
 
-    if (!CourseData) {
+    const buyNow = async () => {
+        if (!userData) return router.push('/login');
+        try {
+            const fd = new FormData();
+            fd.append('courseId', id);
+            const res = (await buyCourse(fd)) as UserResponse;
+            if (res?.success) {
+                toast.success('Course purchased!');
+                setIsPurchased(true);
+                setShowLoginDialog(true);
+            }
+        } catch (err) {
+            console.log(err);
+            toast.error('Purchase failed');
+        }
+    };
+
+    const toggleCart = async () => {
+        if (!userData) return router.push('/login');
+        try {
+            if (isInCart) {
+                await RemoveFromCartCourse({ courseId: id });
+                toast.success('Removed from cart');
+            } else {
+                const fd = new FormData();
+                fd.append('courseId', id);
+                await addToCartCourse(fd);
+                toast.success('Added to cart');
+            }
+            setIsInCart(!isInCart);
+        } catch (err) {
+            console.log(err);
+            toast.error('Cart update failed');
+        }
+    };
+
+    const watchedEntry = userData?.Watched_Course?.find(
+        (wc) => wc.courseId.toString() === id
+    );
+    const completedVideos = watchedEntry?.completedVideos || [];
+
+    const progress =
+        course?.Video?.length
+            ? (completedVideos.filter((url) =>
+                    course.Video.some((v) => v.Video_Url === url)
+                ).length /
+                course.Video.length) *
+            100
+            : 0;
+
+    if (!course) {
         return (
-            <div className="flex h-screen w-screen bg-blue-900 justify-center items-center">
+            <div className="flex h-screen items-center justify-center bg-gradient-to-br from-indigo-950 to-purple-950">
                 <Loader />
             </div>
         );
     }
 
-    if (progressLoading) {
+    if (savingProgress) {
         return (
-            <div className="flex h-screen w-screen bg-blue-900 justify-center items-center">
+            <div className="flex h-screen flex-col items-center justify-center gap-4 bg-gradient-to-br from-indigo-950 to-purple-950">
                 <Loader />
-                <span className="ml-4 text-white text-lg">Updating progress...</span>
+                <p className="text-xl text-white">Saving your progress...</p>
             </div>
         );
     }
-
-    // Helper: get completedVideos array for this course from userData
-    let completedVideosArr: string[] = [];
-    if (userData && userData.Watched_Course) {
-        const watchedCourse = userData.Watched_Course.find((entry) => {
-            if (typeof entry.courseId === 'string') {
-                return entry.courseId === id;
-            }
-            if (
-                typeof entry.courseId === 'object' &&
-                entry.courseId &&
-                '_id' in entry.courseId &&
-                typeof (entry.courseId as { _id: unknown })._id !== 'undefined'
-            ) {
-                const objectId = ((entry.courseId as unknown) as { _id: string | number })._id;
-                return String(objectId) === String(id);
-            }
-            return false;
-        });
-        if (watchedCourse && Array.isArray(watchedCourse.completedVideos)) {
-            completedVideosArr = watchedCourse.completedVideos.map((vid) => String(vid));
-        }
-    }
-
-    // Calculate course progress based on completedVideosArr
-    let courseProgress = 0;
-    if (CourseData && Array.isArray(CourseData.Video) && CourseData.Video.length > 0) {
-        const totalVideos = CourseData.Video.length;
-        const completedVideos = CourseData.Video.filter((video: Video) => completedVideosArr.includes(String((video as Video).Video_Url))).length;
-        courseProgress = (completedVideos / totalVideos) * 100;
-    }
-
-    const handleBuyCourse = async (courseId: string) => {
-        if (!userData) {
-            router.push('/login');
-            toast("Please Login first", { icon: '⚠️' });
-            return;
-        }
-
-        try {
-            const formData = new FormData();
-            formData.append('courseId', courseId);
-
-            const response = await buyCourse(formData) as UserResponse;
-
-            if (response?.success) {
-                toast.success("You successfully bought this course!");
-                setIsBuyed(true);
-                setShouldFetchUserData(true);
-                setShowLoginPopup(true);
-            } else {
-                toast.error(response?.message || "Something went wrong.");
-            }
-
-        } catch (error) {
-            toast.error("" + error);
-        }
-    };
-
-    const handleCartCourse = async (courseId: string) => {
-        if (!userData) {
-            router.push('/login');
-            toast("Please Login first", { icon: '⚠️' });
-            return;
-        }
-
-        try {
-            const formData = new FormData();
-            formData.append('courseId', courseId);
-
-            const response = await addToCartCourse(formData) as UserResponse;
-
-            if (response?.success) {
-                toast.success("Added to cart!");
-                setIsInCart(true);
-            } else {
-                toast.error(response?.message || "Something went wrong.");
-            }
-        } catch (error) {
-            toast.error("" + error);
-        }
-    };
-
-    const handleRemoveCartCourse = async (courseId: string) => {
-        try {
-            const response = await RemoveFromCartCourse({courseId}) as UserResponse;
-
-            if (response?.success) {
-                toast.success("Remove from cart!");
-                setIsInCart(false);
-            } else {
-                toast.error(response?.message || "Something went wrong.");
-            }
-        } catch (error) {
-            toast.error("" + error);
-        }
-    };
 
     return (
-        <div
-            className="min-h-screen w-full flex flex-col bg-blue-900 items-stretch p-4 font-sans relative overflow-x-hidden">
-            <div className="flex flex-col items-center justify-start p-4 sm:p-6 lg:p-10 max-h-full flex-1">
-                <div
-                    className="flex flex-col mt-16 lg:flex-row items-center justify-between text-center lg:text-left max-w-6xl mb-5 w-full">
-                    <div className="flex-1">
-                        <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-white mb-4 tracking-tight">
-                            {CourseData.Course_Name}
-                        </h1>
-                        <p className="text-gray-400 text-base sm:text-lg lg:text-xl mb-6 leading-relaxed">
-                            {CourseData.Description}
-                        </p>
-                        <div className="flex flex-col sm:flex-row justify-center lg:justify-start gap-4 mb-6">
-                            {!userUploded &&
-                                !isBuyed && (
+        <>
+            {/* Animated Background */}
+            <div className="fixed inset-0 -z-10 overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-br from-indigo-950 via-purple-950 to-pink-950" />
+                <motion.div
+                    animate={{ scale: [1, 1.4, 1] }}
+                    transition={{ duration: 20, repeat: Infinity }}
+                    className="absolute top-20 left-0 w-96 h-96 bg-cyan-600/30 rounded-full blur-3xl"
+                />
+                <motion.div
+                    animate={{ scale: [1.2, 1, 1.2] }}
+                    transition={{ duration: 25, repeat: Infinity }}
+                    className="absolute bottom-20 right-0 w-80 h-80 bg-purple-600/30 rounded-full blur-3xl"
+                />
+            </div>
+
+            <div className="min-h-screen pt-20 pb-32 px-4 font-sans">
+                <div className="max-w-7xl mx-auto">
+                    {/* Hero Section */}
+                    <motion.div
+                        initial={{ opacity: 0, y: 40 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="grid lg:grid-cols-2 gap-12 items-center mb-20"
+                    >
+                        <div>
+                            <h1 className="text-5xl sm:text-6xl lg:text-8xl font-black bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 via-purple-400 to-pink-400 mb-6">
+                                {course.Course_Name}
+                            </h1>
+                            <p className="text-xl text-gray-300 mb-8 leading-relaxed">
+                                {course.Description}
+                            </p>
+
+                            <div className="flex flex-wrap items-center gap-6">
+                                {/* Buy & Cart Buttons - Only show if not purchased & not uploaded by user */}
+                                {!isUploadedByUser && !isPurchased && (
                                     <>
-                                        <Button variant="destructive"
-                                            className="text-white px-6 py-3 rounded-xl duration-300 font-semibold sm:text-lg"
-                                            onClick={() => handleBuyCourse(CourseData._id.toString())}
+                                        <Button
+                                            onClick={buyNow}
+                                            size="lg"
+                                            className="relative overflow-hidden bg-gradient-to-r from-pink-600 to-red-600 hover:from-pink-700 hover:to-red-700 text-white font-bold text-lg px-12 py-8 rounded-3xl shadow-2xl transform hover:scale-105 transition-all duration-300"
                                         >
-                                            Buy
-                                        </Button>
-                                        {isInCart ? (
-                                            <Button variant="destructive"
-                                                className="text-white px-6 py-3 rounded-xl duration-300 font-semibold sm:text-lg"
-                                                onClick={() => handleRemoveCartCourse(CourseData._id.toString())}
-                                            >
-                                                Remove from Cart
-                                            </Button>
-                                        ) : (
-                                            <Button variant="destructive"
-                                                className="text-white px-6 py-3 rounded-xl duration-300 font-semibold sm:text-lg"
-                                                onClick={() => handleCartCourse(CourseData._id.toString())}
-                                            >
-                                                Cart
-                                            </Button>
-                                        )}
-                                    </>
-                                )
-                            }
-
-                            <Button variant="outline"
-                                className="text-white px-6 py-3 rounded-xl duration-300 font-semibold sm:text-lg">
-                                <Link href="/courses">Back to Courses</Link>
-                            </Button>
-                        </div>
-                    </div>
-                    <div className="relative mt-6 lg:mt-0 lg:ml-6">
-                        <Image
-                            src={CourseData.Image ||
-                                "https://www.shutterstock.com/image-vector/default-ui-image-placeholder-wireframes-600nw-1037719192.jpg"}
-                            alt={CourseData.Course_Name}
-                            width={400}
-                            height={400}
-                            className="w-full max-w-md h-48 sm:h-64 object-cover rounded-lg"
-                        />
-                        <div
-                            className="absolute inset-0 rounded-lg bg-gradient-to-r from-black/50 to-transparent pointer-events-none" />
-                        <button
-                            onClick={() => toggleLike(CourseData._id.toString())}
-                            className="absolute top-2 right-2 p-1 rounded-full bg-white/80 hover:bg-white transition-colors duration-300"
-                            aria-label={likedCourses ? 'Unlike course' : 'Like course'}
-                        >
-                            <FaHeart className={`w-5 h-5 ${likedCourses ? 'text-[#FF6B6B]' : 'text-gray-400'}`} />
-                        </button>
-                    </div>
-                </div>
-
-                <div className="w-full max-w-6xl mb-10 px-2 sm:px-4">
-                    <h2 className="text-2xl sm:text-3xl font-bold text-gray-200 mb-4">Course Details</h2>
-                    <div className="bg-white/10 rounded-lg p-6">
-                        <p className="text-white text-base sm:text-lg mb-2">
-                            <span className="font-semibold">Department:</span> {CourseData.Department}
-                        </p>
-                        <p className="text-white text-base sm:text-lg mb-2">
-                            <span className="font-semibold">Price:</span> ₹{CourseData.Price}
-                        </p>
-                        <p className="text-white text-base sm:text-lg mb-2">
-                            <span className="font-semibold">By:</span> {CourseData.Username?.Username || "Unknown"}
-                        </p>
-                    </div>
-                </div>
-
-                {isBuyed || userUploded ? (
-                    <>
-                        {!userUploded && (
-                            <div className="w-full max-w-6xl mb-10 px-2 sm:px-4">
-                                <h2 className="text-2xl sm:text-3xl font-bold text-gray-200 mb-4">Progress</h2>
-                                <div className="bg-white/10 rounded-lg p-6">
-                                    <p className="text-white text-base sm:text-lg mb-4">
-                                        <span className="font-semibold">Progress:</span> {Math.round(courseProgress)}%
-                                        Complete
-                                    </p>
-                                    <div className="w-full bg-gray-600 rounded-full h-2.5">
-                                        <div className="bg-[#FF6B6B] h-2.5 rounded-full"
-                                            style={{ width: `${courseProgress}%` }} />
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-
-                        <div className="w-full max-w-6xl mb-16 px-2 sm:px-4">
-                            {userUploded && (
-                                <div className="flex justify-between items-center mb-6">
-                                    <h2 className="text-2xl sm:text-3xl font-bold text-gray-200">Course Videos</h2>
-                                    <Button variant="outline"
-                                        className="text-white px-6 py-3 rounded-xl duration-300 font-semibold sm:text-lg">
-                                        <Link href={`/view/course/${CourseData._id}/add-video`}>Add Video</Link>
-                                    </Button>
-                                </div>
-                            )}
-                            {(!CourseData.Video || CourseData.Video.length === 0) ? (
-                                <p className="text-gray-400 text-base sm:text-lg text-center">
-                                    No videos available. Add a video to get started!
-                                </p>
-                            ) : (
-                                <div className="space-y-6">
-                                    {CourseData.Video.map((video: Video) => {
-                                        const { Video_Url, Description } = video as Video;
-                                        const videoId = Video_Url;
-                                        // Use completedVideosArr for status
-                                        const isCompleted = completedVideosArr.includes(String(videoId));
-                                        return (
+                                            <span className="relative z-10">Buy Now ₹{course.Price}</span>
                                             <div
-                                                key={videoId}
-                                                className="bg-white/10 rounded-lg p-4 flex flex-col sm:flex-row items-start sm:items-center gap-4"
-                                            >
-                                                <div className="w-full sm:w-1/3">
-                                                    <div className="relative"
-                                                        style={{ width: '100%', paddingBottom: '56.25%' }}>
-                                                        <video
-                                                            controls
-                                                            className="absolute top-0 left-0 w-full h-full rounded-lg"
-                                                            src={Video_Url}
-                                                            ref={el => { videoRefs.current[videoId] = el; }}
-                                                            onTimeUpdate={() => {
-                                                                const el = videoRefs.current[videoId];
-                                                                if (el) handleTimeUpdate(videoId, el);
-                                                            }}
-                                                            onPlay={() => handlePlay(videoId)}
-                                                        />
-                                                    </div>
-                                                </div>
-                                                <div className="flex-1">
-                                                    <p className="text-gray-400 text-sm sm:text-base mb-2">{Description}</p>
-                                                    {!userUploded && (
-                                                        <span className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${isCompleted ? 'bg-green-600 text-white' : 'bg-gray-400 text-gray-900'}`}>
-                                                            Status: {isCompleted ? 'Completed' : 'Not Completed'}
-                                                        </span>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            )}
-                        </div>
-                    </>
-                ) : (
-                    <p className="text-red-400 text-base sm:text-lg mb-6 leading-relaxed">
-                        Buy the course to show a Video.
-                    </p>
-                )}
+                                                className="absolute inset-0 bg-white/20 translate-y-full transition-transform duration-300 group-hover:translate-y-0"/>
+                                        </Button>
 
-                <div className="w-full max-w-6xl text-center mb-16 px-2 sm:px-4">
-                    <h2 className="text-2xl sm:text-3xl font-bold text-white mb-4">Ready to Learn?</h2>
-                    <p className="text-gray-400 text-base sm:text-lg mb-6 leading-relaxed">
-                        Start this course now or explore more courses to continue your learning journey.
-                    </p>
-                    <Button variant="outline"
-                        className="text-white px-6 py-3 rounded-xl duration-300 font-semibold sm:text-lg">
-                        <Link href="/courses">Browse All Courses</Link>
-                    </Button>
+                                        <Button
+                                            onClick={toggleCart}
+                                            size="lg"
+                                            variant="outline"
+                                            className="group relative overflow-hidden border-2 border-white/40 hover:border-white/60 backdrop-blur-xl bg-white/10 hover:bg-white/20 text-white font-bold text-lg px-10 py-8 rounded-3xl shadow-xl transition-all duration-300 hover:scale-105"
+                                        >
+        <span className="relative z-10">
+          {isInCart ? 'Remove from Cart' : 'Add to Cart'}
+        </span>
+                                            <div
+                                                className="absolute inset-0 bg-gradient-to-r from-cyan-500/20 to-purple-500/20 translate-x-full transition-transform duration-500 group-hover:translate-x-0"/>
+                                        </Button>
+                                    </>
+                                )}
+
+                                {/* Back to Courses - Always visible */}
+                                <Button
+                                    asChild
+                                    size="lg"
+                                    variant="outline"
+                                    className="group relative overflow-hidden border-2 border-cyan-500/60 hover:border-cyan-400 backdrop-blur-xl bg-cyan-500/5 hover:bg-cyan-500/10 text-cyan-400 hover:text-cyan-300 font-bold text-lg px-10 py-8 rounded-3xl shadow-xl transition-all duration-300 hover:scale-105"
+                                >
+                                    <Link href="/courses" className="flex items-center gap-3">
+                                        <span>Back to Courses</span>
+                                        <motion.span
+                                            initial={{x: -10, opacity: 0}}
+                                            animate={{x: 0, opacity: 1}}
+                                            transition={{duration: 0.3}}
+                                            className="inline-block"
+                                        >
+                                            →
+                                        </motion.span>
+                                    </Link>
+                                </Button>
+                            </div>
+                        </div>
+
+                        <div className="relative group mt-21">
+                            <Image
+                                src={course.Image || '/placeholder.jpg'}
+                                alt={course.Course_Name}
+                                width={600}
+                                height={600}
+                                className="rounded-3xl shadow-2xl object-cover w-full"
+                            />
+                            <div
+                                className="absolute inset-0 rounded-3xl bg-gradient-to-t from-black/70 to-transparent"/>
+                            <motion.button
+                                whileTap={{scale: 0.8}}
+                                onClick={toggleFavorite}
+                                className="absolute top-6 right-6 p-4 bg-white/20 backdrop-blur-md rounded-full hover:bg-white/40"
+                            >
+                                <FaHeart className={`w-8 h-8 ${liked ? 'text-pink-500' : 'text-white/70'}`}/>
+                            </motion.button>
+                        </div>
+                    </motion.div>
+
+                    {/* Course Details */}
+                    <motion.div
+                        initial={{opacity: 0}}
+                        animate={{opacity: 1}}
+                        transition={{delay: 0.3}}
+                        className="bg-white/10 backdrop-blur-2xl rounded-3xl p-10 border border-white/20 mb-16"
+                    >
+                        <h2 className="text-4xl font-bold text-white mb-8">Course Details</h2>
+                        <div className="grid md:grid-cols-3 gap-6 text-white text-lg">
+                            <div><span className="text-cyan-400 font-semibold">Department:</span> {course.Department}
+                            </div>
+                            <div><span className="text-cyan-400 font-semibold">Price:</span> ₹{course.Price}</div>
+                            <div><span
+                                className="text-cyan-400 font-semibold">Instructor:</span> {course.Username?.Username || 'Unknown'}
+                            </div>
+                        </div>
+                    </motion.div>
+
+                    {/* Course Content */}
+                    {(isPurchased || isUploadedByUser) && (
+                        <>
+                            {!isUploadedByUser && (
+                                <motion.div
+                                    initial={{ opacity: 0, y: 20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: 0.4 }}
+                                    className="mb-16"
+                                >
+                                    <h2 className="text-4xl font-bold text-white mb-8">Your Progress</h2>
+                                    <div className="bg-white/10 backdrop-blur-2xl rounded-3xl p-10 border border-white/20">
+                                        <div className="flex justify-between mb-4">
+                                            <span className="text-2xl text-white font-semibold">Completion</span>
+                                            <span className="text-3xl font-bold text-cyan-400">{Math.round(progress)}%</span>
+                                        </div>
+                                        <div className="w-full bg-white/20 rounded-full h-6 overflow-hidden">
+                                            <motion.div
+                                                initial={{ width: 0 }}
+                                                animate={{ width: `${progress}%` }}
+                                                transition={{ duration: 1.5, ease: 'easeOut' }}
+                                                className="h-full bg-gradient-to-r from cyan-500 to-purple-600 rounded-full shadow-lg"
+                                            />
+                                        </div>
+                                    </div>
+                                </motion.div>
+                            )}
+
+                            <motion.div
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                transition={{ delay: 0.5 }}
+                            >
+                                <div className="flex justify-between items-center mb-10">
+                                    <h2 className="text-4xl font-bold text-white">Course Content</h2>
+                                    {isUploadedByUser && (
+                                        <Button asChild size="lg" className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700">
+                                            <Link href={`/view/course/${id}/add-video`}>Add Video</Link>
+                                        </Button>
+                                    )}
+                                </div>
+
+                                {course.Video?.length === 0 ? (
+                                    <p className="text-center py-20 text-gray-400 text-xl">
+                                        {isUploadedByUser ? 'No videos yet. Upload one!' : 'Videos coming soon!'}
+                                    </p>
+                                ) : (
+                                    <div className="space-y-8">
+                                        {course.Video?.map((video: Video, i: number) => {
+                                            const videoUrl = video.Video_Url;
+                                            const isCompleted = completedVideos.includes(videoUrl);
+
+                                            return (
+                                                <motion.div
+                                                    key={videoUrl}
+                                                    initial={{ opacity: 0, x: -50 }}
+                                                    animate={{ opacity: 1, x: 0 }}
+                                                    transition={{ delay: i * 0.1 }}
+                                                    className="bg-white/10 backdrop-blur-2xl rounded-3xl overflow-hidden border border-white/20"
+                                                >
+                                                    <div className="grid lg:grid-cols-3 gap-8 p-8">
+                                                        <div className="lg:col-span-1">
+                                                            <div className="relative aspect-video rounded-2xl overflow-hidden shadow-2xl">
+                                                                <video
+                                                                    controls
+                                                                    className="w-full h-full object-cover"
+                                                                    src={videoUrl}
+                                                                    ref={(el) => {
+                                                                        if (el) videoRefs.current[videoUrl] = el;
+                                                                    }}
+                                                                    onTimeUpdate={() => {
+                                                                        const el = videoRefs.current[videoUrl];
+                                                                        if (el) handleVideoProgress(videoUrl, el);
+                                                                    }}
+                                                                    onPlay={() => playFullscreen(videoUrl)}
+                                                                />
+                                                                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent pointer-events-none" />
+                                                                <div className="absolute bottom-4 left-4 flex items-center gap-3">
+                                                                    <FaPlayCircle className="w-10 h-10 text-white/90" />
+                                                                    <span className="text-white font-semibold text-lg">Play</span>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <div className="lg:col-span-2 flex flex-col justify-center">
+                                                            <p className="text-gray-300 text-lg mb-6 leading-relaxed">
+                                                                {video.Description}
+                                                            </p>
+                                                            {!isUploadedByUser && (
+                                                                <span
+                                                                    className={`inline-block px-6 py-3 rounded-full font-bold text-sm ${
+                                                                        isCompleted
+                                                                            ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white'
+                                                                            : 'bg-white/20 text-gray-300'
+                                                                    }`}
+                                                                >
+                                  {isCompleted ? 'Completed' : 'Not Started'}
+                                </span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </motion.div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </motion.div>
+                        </>
+                    )}
+
+                    {/* Final CTA */}
+                    <motion.div
+                        initial={{ opacity: 0, y: 40 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.8 }}
+                        className="text-center mt-32"
+                    >
+                        <h2 className="text-5xl font-black text-white mb-6">Keep Learning!</h2>
+                        <p className="text-xl text-gray-300 mb-10">Explore more courses and level up.</p>
+                        <Button
+                            asChild
+                            size="lg"
+                            className="bg-gradient-to-r from-cyan-500 to-purple-600 hover:from-cyan-600 hover:to-purple-700 text-white font-bold px-16 py-8 rounded-2xl shadow-2xl hover:scale-105 transition-all"
+                        >
+                            <Link href="/courses">Browse All Courses</Link>
+                        </Button>
+                    </motion.div>
                 </div>
             </div>
 
-            <Dialog open={showLoginPopup} onOpenChange={setShowLoginPopup}>
-                <DialogContent className="max-w-sm text-center">
+            {/* Session Expired Dialog */}
+            <Dialog open={showLoginDialog} onOpenChange={setShowLoginDialog}>
+                <DialogContent className="bg-white/10 backdrop-blur-2xl border border-white/20 text-white">
                     <DialogHeader>
-                        <DialogTitle className="text-lg sm:text-xl font-semibold">
-                            To continue watching this course, you need to login again.
-                        </DialogTitle>
+                        <DialogTitle className="text-2xl text-center">Session Expired</DialogTitle>
                     </DialogHeader>
+                    <p className="text-center text-gray-300 mb-6">Log in again to continue.</p>
                     <Button
                         onClick={() => {
-                            if (typeof window !== "undefined") {
-                                localStorage.removeItem("token");
+                            if (typeof window !== 'undefined') {
+                                localStorage.removeItem('token');
                             }
-                            router.push("/login");
+                            router.push('/login');
                             logout();
                         }}
-                        className="mt-4 w-full"
+                        className="w-full bg-gradient-to-r from-pink-600 to-purple-600"
                     >
-                        Login
+                        Login Again
                     </Button>
                 </DialogContent>
             </Dialog>
-
-        </div>
+        </>
     );
 };
 
