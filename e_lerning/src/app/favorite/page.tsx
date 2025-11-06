@@ -17,6 +17,7 @@ import { Types } from 'mongoose';
 const FavoritePage: React.FC = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [likedCourses, setLikedCourses] = useState<string[]>([]);
+    console.log(likedCourses);
     const [userData, setUserData] = useState<User>();
     // Define a Course type if not already defined
     type Course = {

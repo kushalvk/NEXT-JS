@@ -13,6 +13,7 @@ import {addToFavouriteService, removeFromFavouriteService} from "@/services/Favo
 import {useRouter} from "next/navigation";
 import Loader from "@/components/Loader";
 import Image from "next/image";
+import { motion } from 'framer-motion';
 
 const MyCoursesPage: React.FC = () => {
     const [searchQuery, setSearchQuery] = useState('');
@@ -101,152 +102,184 @@ const MyCoursesPage: React.FC = () => {
     );
 
     return (
-        <div
-            className="min-h-screen w-full flex flex-col bg-blue-900 items-stretch p-4 font-sans relative overflow-x-hidden">
-            {/* Main Content */}
-            <div className="flex flex-col items-center justify-start p-4 sm:p-6 lg:p-10 max-h-full flex-1">
-                {/* Hero Section */}
-                <div
-                    className="flex flex-col mt-16 lg:flex-row items-center justify-between text-center lg:text-left max-w-6xl mb-5 w-full">
-                    <div className="flex-1">
-                        <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-white mb-4 tracking-tight">
+        <>
+            {/* Animated Gradient Background */}
+            <div className="fixed inset-0 -z-10 overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-br from-indigo-950 via-purple-950 to-pink-950" />
+                <motion.div
+                    animate={{ x: [-100, 100, -100], y: [-50, 100, -50] }}
+                    transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+                    className="absolute top-20 left-0 w-96 h-96 bg-cyan-500/30 rounded-full blur-3xl"
+                />
+                <motion.div
+                    animate={{ x: [100, -100, 100], y: [50, -100, 50] }}
+                    transition={{ duration: 25, repeat: Infinity, ease: "linear" }}
+                    className="absolute bottom-20 right-0 w-80 h-80 bg-purple-500/30 rounded-full blur-3xl"
+                />
+            </div>
+
+            <div className="min-h-screen w-full flex flex-col items-stretch p-4 font-sans relative">
+                <div className="flex flex-col items-center justify-start p-6 sm:p-8 lg:p-12 flex-1">
+
+                    {/* Hero */}
+                    <motion.div
+                        initial={{ opacity: 0, y: 30 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="w-full max-w-6xl text-center mb-16 mt-21"
+                    >
+                        <h1 className="text-5xl sm:text-6xl lg:text-8xl font-black bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 via-purple-400 to-pink-400 mb-6">
                             My Courses
                         </h1>
-                        <p className="text-gray-400 text-base sm:text-lg lg:text-xl mb-6 leading-relaxed">
-                            Track your learning progress and continue your journey with our expert-led courses.
+                        <p className="text-xl sm:text-2xl text-gray-300 max-w-3xl mx-auto leading-relaxed">
+                            Track your learning journey with expert-led courses.
                         </p>
-                        <div className="flex flex-col sm:flex-row justify-center lg:justify-start gap-4 mb-6">
-                            <Button
-                                variant="outline"
-                                className="text-white px-6 py-3 rounded-xl duration-300 font-semibold sm:text-lg"
-                            >
+
+                        <div className="flex flex-col sm:flex-row gap-6 justify-center mt-10">
+                            <Button asChild size="lg" className="bg-white/10 backdrop-blur-xl border border-white/20 hover:bg-white/20 text-white font-bold px-10 py-6 rounded-2xl shadow-xl">
                                 <Link href="/courses">Explore More Courses</Link>
                             </Button>
-                            <Link
-                                href="/profile"
-                                className="text-white hover:text-gray-400 font-medium hover:underline transition-colors duration-300 text-base sm:text-lg mt-2 text-center"
-                            >
-                                View Profile
-                            </Link>
+                            <Button asChild variant="outline" size="lg" className="border-2 border-white/30 hover:bg-white/10 backdrop-blur-xl text-white font-semibold px-10 py-6 rounded-2xl">
+                                <Link href="/profile">View Profile</Link>
+                            </Button>
                         </div>
-                    </div>
-                </div>
+                    </motion.div>
 
-                {/* Search Section */}
-                <div className="w-full max-w-6xl px-2 sm:px-4">
-                    <div className="flex flex-col sm:flex-row items-center gap-4 mb-8">
-                        <div className="relative w-full sm:max-w-md">
+                    {/* Search */}
+                    <div className="w-full max-w-6xl mb-12">
+                        <div className="relative max-w-xl mx-auto group">
+                            <FiSearch className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-400 group-hover:text-cyan-400 transition-all text-2xl" />
                             <input
                                 type="text"
                                 placeholder="Search my courses..."
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full px-4 py-2 bg-white/10 text-white placeholder-gray-400 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B6B] transition-all duration-300 text-sm sm:text-base"
-                                aria-label="Search my courses"
+                                className="w-full pl-16 pr-8 py-5 bg-white/10 backdrop-blur-2xl border border-white/20 text-white placeholder-gray-400 rounded-3xl focus:outline-none focus:ring-4 focus:ring-cyan-500/50 transition-all text-lg shadow-2xl group-hover:bg-white/20"
                             />
-                            <FiSearch
-                                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-[#FF6B6B] cursor-pointer transition-colors duration-300 w-5 h-5"
-                            />
+                            <div className="absolute inset-0 rounded-3xl bg-gradient-to-r from-cyan-500/20 to-purple-500/20 blur-3xl -z-10 group-hover:opacity-100 opacity-70 transition-opacity" />
                         </div>
                     </div>
-                </div>
 
-                {/* Enrolled Courses List */}
-                <div className="w-full max-w-6xl mb-16 px-2 sm:px-4">
-                    <h2 className="text-2xl sm:text-3xl font-bold text-gray-200 mb-6">Your Enrolled Courses</h2>
-                    {isLoading ? (
-                        <Loader/>
-                    ) : filteredCourses.length === 0 ? (
-                        <p className="text-gray-400 text-base sm:text-lg text-center">
-                            No courses found. Try adjusting your search or enroll in a new course.
-                        </p>
-                    ) : (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {filteredCourses.map((course) => (
-                                <div
-                                    key={course.courseId._id}
-                                    className="bg-white rounded-xl p-4 shadow-lg hover:shadow-xl transition transform hover:-translate-y-1 relative"
-                                >
-                                    <div className="relative mb-4">
-                                        <Image
-                                            src={course.Image || "https://www.shutterstock.com/image-vector/default-ui-image-placeholder-wireframes-600nw-1037719192.jpg"}
-                                            alt={course.courseId.Course_Name}
-                                            width={400}
-                                            height={400}
-                                            className="w-full h-40 object-cover rounded-lg"
-                                        />
-                                        <div
-                                            className="absolute inset-0 rounded-lg bg-gradient-to-r from-black/50 to-transparent pointer-events-none"></div>
-                                        <button
-                                            onClick={() => toggleLike(course.courseId._id)}
-                                            className="absolute top-2 right-2 p-1 rounded-full bg-white/80 hover:bg-white transition-colors duration-300"
-                                            aria-label={likedCourses.includes(course.courseId._id) ? 'Unlike course' : 'Like course'}
-                                        >
-                                            <FaHeart
-                                                className={`w-5 h-5 ${
-                                                    likedCourses.includes(course.courseId._id)
-                                                        ? 'text-[#FF6B6B]'
-                                                        : 'text-gray-400'
-                                                }`}
-                                            />
-                                        </button>
-                                    </div>
-                                    <h3 className="text-lg font-semibold text-gray-700 mb-2">{course.courseId.Course_Name}</h3>
-                                    <p className="text-sm text-[#1E3A8A] mb-3">{course.courseId.Description}</p>
-                                    {/*<div className="mb-3">*/}
-                                    {/*    <p className="text-sm font-semibold text-gray-700">Progress: {course.progress}%</p>*/}
-                                    {/*    <div className="w-full bg-gray-200 rounded-full h-2.5">*/}
-                                    {/*        <div*/}
-                                    {/*            className="bg-[#FF6B6B] h-2.5 rounded-full"*/}
-                                    {/*            style={{ width: `${course.progress}%` }}*/}
-                                    {/*        ></div>*/}
-                                    {/*    </div>*/}
-                                    {/*</div>*/}
-                                    <div className="flex gap-2">
-                                        <Button
-                                            variant="destructive"
-                                            className="rounded-lg duration-300 flex-1 flex items-center justify-center gap-2"
-                                        >
-                                            <Link href={`/view/course/${course.courseId._id}`} className="text-white">
-                                                Continue Learning
-                                            </Link>
-                                            <FaPlayCircle className="w-5 h-5"/>
-                                        </Button>
-                                        <Button
-                                            variant="outline"
-                                            className="rounded-lg duration-300 flex items-center justify-center"
-                                            onClick={() => toggleLike(course.courseId._id)}
-                                        >
-                                            <FaHeart
-                                                className={`w-5 h-5 ${
-                                                    likedCourses.includes(course.courseId._id)
-                                                        ? 'text-[#FF6B6B]'
-                                                        : 'text-gray-400'
-                                                }`}
-                                            />
-                                        </Button>
-                                    </div>
+                    {/* Courses Grid */}
+                    <div className="w-full max-w-6xl">
+                        <motion.h2
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            transition={{ delay: 0.3 }}
+                            className="text-3xl sm:text-4xl font-bold text-white mb-10 text-center"
+                        >
+                            Your Enrolled Courses
+                        </motion.h2>
+
+                        {isLoading ? (
+                            <div className="flex justify-center py-20">
+                                <Loader />
+                            </div>
+                        ) : filteredCourses.length === 0 ? (
+                            <motion.div
+                                initial={{ scale: 0.9, opacity: 0 }}
+                                animate={{ scale: 1, opacity: 1 }}
+                                className="text-center py-24"
+                            >
+                                <div className="bg-white/10 backdrop-blur-xl rounded-3xl p-16 max-w-md mx-auto border border-white/20">
+                                    <div className="w-32 h-32 mx-auto mb-8 bg-gradient-to-br from-cyan-500/20 to-purple-500/20 rounded-2xl border-2 border-dashed border-white/30" />
+                                    <h3 className="text-3xl font-bold text-white mb-4">No courses found</h3>
+                                    <p className="text-gray-300 text-lg mb-8">Try a different search or enroll in new courses!</p>
+                                    <Button asChild size="lg" className="bg-gradient-to-r from-cyan-500 to-purple-600 hover:from-cyan-600 hover:to-purple-700">
+                                        <Link href="/courses">Browse Courses</Link>
+                                    </Button>
                                 </div>
-                            ))}
-                        </div>
-                    )}
-                </div>
+                            </motion.div>
+                        ) : (
+                            <motion.div
+                                layout
+                                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8"
+                            >
+                                {filteredCourses.map((course: MyCourse, index) => (
+                                    <motion.div
+                                        key={course.courseId._id}
+                                        layout
+                                        initial={{ opacity: 0, y: 30 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ delay: index * 0.1 }}
+                                        className="group"
+                                    >
+                                        <div className="bg-white/10 backdrop-blur-2xl rounded-3xl overflow-hidden shadow-2xl hover:shadow-cyan-500/30 transition-all duration-500 hover:-translate-y-3 border border-white/20">
+                                            <div className="relative aspect-video">
+                                                <Image
+                                                    src={course.courseId.Image || "https://www.shutterstock.com/image-vector/default-ui-image-placeholder-wireframes-600nw-1037719192.jpg"}
+                                                    alt={course.courseId.Course_Name}
+                                                    fill
+                                                    className="object-cover group-hover:scale-110 transition-transform duration-700"
+                                                />
+                                                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
+                                                <motion.button
+                                                    whileTap={{ scale: 0.8 }}
+                                                    onClick={() => toggleLike(course.courseId._id)}
+                                                    className="absolute top-4 right-4 p-3 bg-white/20 backdrop-blur-md rounded-full hover:bg-white/40 transition-all"
+                                                >
+                                                    <FaHeart className={`w-6 h-6 ${likedCourses.includes(course.courseId._id) ? 'text-pink-500' : 'text-white/70'}`} />
+                                                </motion.button>
+                                            </div>
 
-                {/* Call to Action */}
-                <div className="w-full max-w-6xl text-center mb-16 px-2 sm:px-4">
-                    <h2 className="text-2xl sm:text-3xl font-bold text-white mb-4">Keep Learning!</h2>
-                    <p className="text-gray-400 text-base sm:text-lg mb-6 leading-relaxed">
-                        Explore new courses to continue your learning journey and achieve your goals.
-                    </p>
-                    <Button
-                        variant="outline"
-                        className="text-white px-6 py-3 rounded-xl duration-300 font-semibold sm:text-lg"
+                                            <div className="p-6 space-y-4">
+                                                <h3 className="text-2xl font-bold text-white group-hover:text-cyan-400 transition-colors line-clamp-2">
+                                                    {course.courseId.Course_Name}
+                                                </h3>
+                                                <p className="text-gray-300 text-sm line-clamp-2 leading-relaxed">
+                                                    {course.courseId.Description}
+                                                </p>
+
+                                                <div className="flex gap-3 pt-4">
+                                                    <Button
+                                                        asChild
+                                                        className="flex-1 bg-gradient-to-r from-cyan-500 to-purple-600 hover:from-cyan-600 hover:to-purple-700 text-white font-bold py-6 rounded-2xl shadow-xl transform transition-all hover:scale-105"
+                                                    >
+                                                        <Link href={`/view/course/${course.courseId._id}`} className="flex items-center justify-center gap-3">
+                                                            <FaPlayCircle className="w-6 h-6" />
+                                                            Continue Learning
+                                                        </Link>
+                                                    </Button>
+                                                    <Button
+                                                        variant="outline"
+                                                        size="icon"
+                                                        className="border-white/30 hover:bg-white/10"
+                                                        onClick={() => toggleLike(course.courseId._id)}
+                                                    >
+                                                        <FaHeart className={`w-5 h-5 ${likedCourses.includes(course.courseId._id) ? 'text-pink-500' : 'text-white/70'}`} />
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </motion.div>
+                                ))}
+                            </motion.div>
+                        )}
+                    </div>
+
+                    {/* CTA */}
+                    <motion.div
+                        initial={{ opacity: 0, y: 50 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.6 }}
+                        className="w-full max-w-6xl text-center mt-24"
                     >
-                        <Link href="/courses">Browse All Courses</Link>
-                    </Button>
+                        <h2 className="text-4xl sm:text-5xl font-black text-white mb-6">
+                            Keep Learning!
+                        </h2>
+                        <p className="text-xl text-gray-300 mb-10 max-w-2xl mx-auto">
+                            Explore new courses and level up your skills every day.
+                        </p>
+                        <Button
+                            asChild
+                            size="lg"
+                            className="bg-gradient-to-r from-cyan-500 to-purple-600 hover:from-cyan-600 hover:to-purple-700 text-white font-bold px-12 py-8 rounded-2xl shadow-2xl transform hover:scale-105 transition-all"
+                        >
+                            <Link href="/courses">Browse All Courses</Link>
+                        </Button>
+                    </motion.div>
                 </div>
             </div>
-        </div>
+        </>
     );
 };
 
