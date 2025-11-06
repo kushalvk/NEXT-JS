@@ -86,6 +86,7 @@ const CoursesPage: React.FC = () => {
             }
         } catch (error) {
             toast.error("Failed to update favorite");
+            console.log(error);
             setLikedCourses(prev => isLiked ? [...prev, courseId] : prev.filter(id => id !== courseId));
         }
     };
