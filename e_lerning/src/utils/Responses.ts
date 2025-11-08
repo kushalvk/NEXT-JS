@@ -33,6 +33,7 @@ export interface CourseIdData {
 export interface UserResponse {
     success: boolean,
     message: string,
+    course: CourseCard,
     User: User
 }
 

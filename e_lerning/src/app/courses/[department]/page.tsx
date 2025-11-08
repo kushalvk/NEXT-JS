@@ -1,178 +1,318 @@
 'use client';
 
-import React, {useEffect, useState} from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
-import {Button} from '@/components/ui/button';
-import {FaHeart} from 'react-icons/fa';
-import {User} from "@/models/User";
-import {loggedUser, loggedUserResponse} from "@/services/AuthService";
-import toast from "react-hot-toast";
-import {addToFavouriteService, removeFromFavouriteService} from "@/services/FavouriteService";
-import {useParams, useRouter} from "next/navigation";
-import {fetchCourseByDepartment} from "@/services/CourseService";
-import {Course} from "@/models/Course";
-import {CourseResponse} from "@/utils/Responses";
-import Loader from "@/components/Loader";
-import Image from "next/image";
+import { Button } from '@/components/ui/button';
+import { FaHeart } from 'react-icons/fa';
+import { loggedUser } from '@/services/AuthService';
+import toast from 'react-hot-toast';
+import { addToFavouriteService, removeFromFavouriteService } from '@/services/FavouriteService';
+import { useParams, useRouter } from 'next/navigation';
+import { fetchCourseByDepartment } from '@/services/CourseService';
+import Image from 'next/image';
+import { motion } from 'framer-motion';
 import { Types } from 'mongoose';
 
-const CoursesByDepartmentPage: React.FC = () => {
-    const [likedCourses, setLikedCourses] = useState<string[]>([]);
-    const [userData, setUserData] = useState<User>();
-    const [coursesDepartment, setCoursesDepartment] = useState<Course[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
+// ------------------------------------------------------------------
+// DTOs (plain objects – no Mongoose)
+// ------------------------------------------------------------------
+export interface CourseCard {
+    _id: string;
+    Image?: string;
+    Course_Name: string;
+    Description: string;
+    Department: string;
+    Price: number;
+    Username: { _id: string; Username: string };
+    Video: { _id: string; Video_Description: string }[];
+}
 
-    const router = useRouter();
+export interface CourseResponse {
+    success: boolean;
+    message?: string;
+    course: CourseCard | CourseCard[];
+}
 
-    const params = useParams();
-    const department = decodeURIComponent(params?.department as string);
+// ------------------------------------------------------------------
+// Reusable UI
+// ------------------------------------------------------------------
+const CourseCardItem: React.FC<{
+    course: CourseCard;
+    isLiked: boolean;
+    onToggleLike: () => void;
+    index: number;
+}> = ({ course, isLiked, onToggleLike, index }) => (
+    <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: index * 0.05 }}
+        className="group"
+    >
+        <div className="bg-white/10 backdrop-blur-xl rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 border border-white/20">
+            <div className="relative aspect-video overflow-hidden">
+                <Image
+                    src={course.Image || '/images/placeholder-course.jpg'}
+                    alt={course.Course_Name}
+                    fill
+                    className="object-cover group-hover:scale-110 transition-transform duration-700"
+                />
+                <motion.button
+                    whileTap={{ scale: 0.8 }}
+                    onClick={onToggleLike}
+                    className="absolute top-3 right-3 p-2.5 bg-white/80 backdrop-blur-sm rounded-full shadow-md hover:bg-white transition-all duration-300"
+                    aria-label={isLiked ? 'Unlike' : 'Like'}
+                >
+                    <FaHeart
+                        className={`w-5 h-5 transition-all duration-300 ${
+                            isLiked ? 'text-red-500 scale-110' : 'text-gray-600'
+                        }`}
+                    />
+                </motion.button>
+            </div>
 
-    const fetchUserData = async () => {
-        try {
-            const response = await loggedUser() as loggedUserResponse;
-
-            if (response && response.success) {
-                setUserData(response.User);
-                setLikedCourses(response.User.Favourite.map((id: string | Types.ObjectId) => id.toString()));
-            }
-        } catch (error) {
-            console.error(error);
-        }
-    }
-
-    useEffect(() => {
-        const fetchCoursesDepartment = async () => {
-            try {
-                const response = await fetchCourseByDepartment(department) as CourseResponse;
-                if (response.success) {
-                    setCoursesDepartment(
-                        (Array.isArray(response.course) ? response.course : [response.course]) as Course[]
-                    )
-                }
-            } catch (error) {
-                console.error(error);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-        fetchUserData();
-        fetchCoursesDepartment();
-    }, [department]);
-
-    const courses = coursesDepartment;
-
-    // Group courses by department
-    const coursesByDepartment = courses.reduce((acc, course) => {
-        (acc[course.Department] = acc[course.Department] || []).push(course);
-        return acc;
-    }, {} as { [key: string]: typeof courses });
-
-    const toggleLike = async (courseId: string) => {
-
-        if (!userData) {
-            router.push('/login');
-            toast("Please Login first", {
-                icon: '⚠️',
-            });
-            return;
-        }
-
-        const isLiked = likedCourses.includes(courseId);
-
-        try {
-            if (isLiked) {
-                // Call UNLIKE API
-                setLikedCourses((prev) => prev.filter((id) => id !== courseId));
-                await removeFromFavouriteService({courseId});
-            } else {
-                // Call LIKE API
-                setLikedCourses((prev) => [...prev, courseId]);
-                await addToFavouriteService({courseId});
-            }
-        } catch (error) {
-            console.error("Failed to toggle like:", error);
-        }
-    };
-
-    return (
-        <div
-            className="min-h-screen w-full flex flex-col bg-blue-900 items-stretch p-4 font-sans relative overflow-x-hidden">
-            {/* Main Content */}
-            <div className="flex flex-col items-center justify-start p-4 sm:p-6 lg:p-10 max-h-full flex-1">
-                <div className="mt-16 w-full max-w-6xl">
-                    <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-white mb-8 tracking-tight">
-                        Courses by Department
-                    </h1>
+            <div className="p-5 space-y-3">
+                <h3 className="font-bold text-lg text-white line-clamp-2 group-hover:text-cyan-300 transition-colors">
+                    {course.Course_Name}
+                </h3>
+                <p className="text-sm text-gray-300 line-clamp-2">{course.Description}</p>
+                <div className="flex items-center justify-between">
+                    <span className="text-xl font-bold text-white">₹{course.Price}</span>
                     <Button
-                        variant="outline"
-                        className="text-white px-6 py-3 rounded-xl duration-300 font-semibold sm:text-lg mb-6"
+                        asChild
+                        variant="default"
+                        className="bg-gradient-to-r from-cyan-500 to-purple-600 hover:from-cyan-600 hover:to-purple-700 text-white font-medium rounded-xl px-4 py-2 text-sm"
                     >
-                        <Link href="/courses">Back to Courses</Link>
+                        <Link href={`/view/course/${course._id}`}>View Details</Link>
                     </Button>
-                    <h2 className="text-2xl sm:text-3xl font-bold text-gray-200 mb-4">
-                        {department} Courses
-                    </h2>
-                    {isLoading ? (
-                        <Loader/>
-                    ) : (
-                        Object.keys(coursesByDepartment).map((department) => (
-                            <div key={department} className="mb-12">
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                                    {coursesByDepartment[department].map((course) => (
-                                        <div
-                                            key={course._id as string}
-                                            className="bg-white rounded-xl p-4 shadow-lg hover:shadow-xl transition transform hover:-translate-y-1 relative"
-                                        >
-                                            <div className="relative mb-4">
-                                                <Image
-                                                    src={course.Image || "https://www.shutterstock.com/image-vector/default-ui-image-placeholder-wireframes-600nw-1037719192.jpg"}
-                                                    alt={course.Course_Name}
-                                                    width={400}
-                                                    height={400}
-                                                    className="w-full h-40 object-cover rounded-lg"
-                                                />
-                                                <div
-                                                    className="absolute inset-0 rounded-lg bg-gradient-to-r from-black/50 to-transparent pointer-events-none"></div>
-                                                <button
-                                                    onClick={() => course._id && toggleLike(course._id.toString())}
-                                                    className="absolute top-2 right-2 p-1 rounded-full bg-white/80 hover:bg-white transition-colors duration-300"
-                                                    aria-label={
-                                                        course._id && likedCourses.includes(course._id.toString())
-                                                            ? 'Unlike course'
-                                                            : 'Like course'
-                                                    }
-                                                >
-                                                    <FaHeart
-                                                        className={`w-5 h-5 ${
-                                                            course._id && likedCourses.includes(course._id.toString())
-                                                                ? 'text-[#FF6B6B]'
-                                                                : 'text-gray-400'
-                                                        }`}
-                                                    />
-                                                </button>
-                                            </div>
-                                            <h3 className="text-lg font-semibold text-gray-700 mb-2">
-                                                {course.Course_Name}
-                                            </h3>
-                                            <p className="text-sm text-[#1E3A8A] mb-3">{course.Description}</p>
-                                            <p className="text-sm font-semibold text-gray-700 mb-3">₹ {course.Price}</p>
-                                            <Button
-                                                variant="destructive"
-                                                className="rounded-lg duration-300 w-full"
-                                            >
-                                                <Link href={`/view/course/${course._id}`} className="text-white">
-                                                    View
-                                                </Link>
-                                            </Button>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        ))
-                    )}
                 </div>
             </div>
         </div>
+    </motion.div>
+);
+
+const SkeletonCard = () => (
+    <div className="bg-white/10 backdrop-blur-xl rounded-2xl p-4 animate-pulse border border-white/10">
+        <div className="bg-gray-300/20 h-48 rounded-xl mb-4" />
+        <div className="space-y-3">
+            <div className="h-5 bg-gray-300/20 rounded w-3/4" />
+            <div className="h-4 bg-gray-300/20 rounded w-full" />
+            <div className="h-4 bg-gray-300/20 rounded w-2/3" />
+            <div className="h-10 bg-gray-300/20 rounded mt-4" />
+        </div>
+    </div>
+);
+
+const LoginRequired = () => (
+    <motion.div
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        className="text-center py-20"
+    >
+        <div className="bg-white/10 backdrop-blur-xl rounded-3xl p-10 max-w-md mx-auto border border-white/20">
+            <div className="bg-gray-300/20 border-2 border-dashed rounded-xl w-32 h-32 mx-auto mb-6" />
+            <h3 className="text-2xl font-bold text-white mb-2">Login Required</h3>
+            <p className="text-gray-300 mb-6">
+                Please log in to view courses and add them to your favorites.
+            </p>
+            <Button
+                asChild
+                className="bg-gradient-to-r from-cyan-500 to-purple-600 hover:from-cyan-600 hover:to-purple-700 text-white font-bold"
+            >
+                <Link href="/login">Log In Now</Link>
+            </Button>
+        </div>
+    </motion.div>
+);
+
+const EmptyState = ({ dept }: { dept: string }) => (
+    <motion.div
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        className="text-center py-20"
+    >
+        <div className="bg-white/10 backdrop-blur-xl rounded-3xl p-10 max-w-md mx-auto border border-white/20">
+            <div className="bg-gray-300/20 border-2 border-dashed rounded-xl w-32 h-32 mx-auto mb-6" />
+            <h3 className="text-2xl font-bold text-white mb-2">No courses in {dept}</h3>
+            <p className="text-gray-300 mb-6">
+                There are no courses available in this department yet.
+            </p>
+            <Button asChild variant="outline" className="border-white/30 text-white hover:bg-white/10">
+                <Link href="/courses">Back to All Courses</Link>
+            </Button>
+        </div>
+    </motion.div>
+);
+
+// ------------------------------------------------------------------
+// Main Page – **ONLY SHOWS COURSES WHEN LOGGED IN**
+// ------------------------------------------------------------------
+const CoursesByDepartmentPage: React.FC = () => {
+    const [likedCourses, setLikedCourses] = useState<string[]>([]);
+    const [courses, setCourses] = useState<CourseCard[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [isLoggedIn, setIsLoggedIn] = useState<null | boolean>(null); // null = checking
+
+    const router = useRouter();
+    const params = useParams();
+    const department = decodeURIComponent(params?.department as string);
+
+    // ----------------------------------------------------------------
+    // 1. Check Auth → 2. Fetch Courses (only if logged in)
+    // ----------------------------------------------------------------
+    const fetchData = useCallback(async () => {
+        setIsLoading(true);
+        try {
+            // ---- 1. AUTH CHECK ----
+            const userRes = await loggedUser();
+
+            if (!userRes?.success) {
+                setIsLoggedIn(false);
+                toast.error('Please log in to view courses');
+                router.replace('/login'); // hard redirect
+                return;
+            }
+
+            setIsLoggedIn(true);
+            const favs = userRes.User.Favourite || [];
+            setLikedCourses(favs.map((id: string | Types.ObjectId) => id.toString()));
+
+            // ---- 2. FETCH COURSES (only if logged in) ----
+            const courseRes = await fetchCourseByDepartment(department);
+
+            if (courseRes?.success) {
+                const data = (courseRes as unknown as CourseResponse).course;
+                const courseArray: CourseCard[] = Array.isArray(data) ? data : [data];
+                setCourses(courseArray);
+            } else {
+                toast.error('No courses found in this department');
+            }
+        } catch (err) {
+            console.error(err);
+            toast.error('Failed to load data');
+            setIsLoggedIn(false);
+            router.replace('/login');
+        } finally {
+            setIsLoading(false);
+        }
+    }, [department, router]);
+
+    useEffect(() => {
+        fetchData();
+    }, [fetchData]);
+
+    // ----------------------------------------------------------------
+    // Like / Unlike (only if logged in)
+    // ----------------------------------------------------------------
+    const toggleLike = async (courseId: string) => {
+        if (!isLoggedIn) return;
+
+        const wasLiked = likedCourses.includes(courseId);
+        const service = wasLiked ? removeFromFavouriteService : addToFavouriteService;
+
+        setLikedCourses((prev) =>
+            wasLiked ? prev.filter((id) => id !== courseId) : [...prev, courseId]
+        );
+
+        try {
+            await service({ courseId });
+        } catch {
+            toast.error('Failed to update favorite');
+            setLikedCourses((prev) =>
+                wasLiked ? [...prev, courseId] : prev.filter((id) => id !== courseId)
+            );
+        }
+    };
+
+    // ----------------------------------------------------------------
+    // Render – **NO COURSES IF NOT LOGGED IN**
+    // ----------------------------------------------------------------
+    if (isLoggedIn === null) {
+        // Still checking auth → show loading skeletons
+        return (
+            <div className="min-h-screen flex flex-col items-center p-4 sm:p-6 lg:p-8 pt-20">
+                <div className="w-full max-w-7xl">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                        {[...Array(8)].map((_, i) => (
+                            <SkeletonCard key={i} />
+                        ))}
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    if (!isLoggedIn) {
+        return <LoginRequired />;
+    }
+
+    return (
+        <>
+            {/* Animated Background */}
+            <div className="fixed inset-0 -z-10 overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-br from-blue-900 via-indigo-900 to-purple-900" />
+                <div className="absolute top-0 right-0 w-96 h-96 bg-cyan-500/20 rounded-full blur-3xl animate-pulse" />
+                <div className="absolute bottom-0 left-0 w-80 h-80 bg-pink-500/20 rounded-full blur-3xl animate-pulse delay-700" />
+            </div>
+
+            <div className="min-h-screen flex flex-col items-center p-4 sm:p-6 lg:p-8 pt-20 lg:pt-24 font-sans">
+                {/* Header */}
+                <motion.div
+                    initial={{ y: -30, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    className="w-full max-w-4xl text-center mb-12"
+                >
+                    <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-white mb-4 tracking-tight">
+                        {department} Courses
+                    </h1>
+                    <p className="text-gray-300 text-lg">
+                        Explore courses in your chosen department.
+                    </p>
+                </motion.div>
+
+                {/* Back Button */}
+                <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.2 }}
+                    className="mb-8"
+                >
+                    <Button asChild variant="outline" className="border-white/30 text-white hover:bg-white/10">
+                        <Link href="/courses">Back to All Courses</Link>
+                    </Button>
+                </motion.div>
+
+                {/* Loading / Empty / Courses */}
+                {isLoading ? (
+                    <div className="w-full max-w-7xl">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                            {[...Array(8)].map((_, i) => (
+                                <SkeletonCard key={i} />
+                            ))}
+                        </div>
+                    </div>
+                ) : courses.length === 0 ? (
+                    <EmptyState dept={department} />
+                ) : (
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="w-full max-w-7xl"
+                    >
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                            {courses.map((course, idx) => (
+                                <CourseCardItem
+                                    key={course._id}
+                                    course={course}
+                                    isLiked={likedCourses.includes(course._id)}
+                                    onToggleLike={() => toggleLike(course._id)}
+                                    index={idx}
+                                />
+                            ))}
+                        </div>
+                    </motion.div>
+                )}
+            </div>
+        </>
     );
 };
 
