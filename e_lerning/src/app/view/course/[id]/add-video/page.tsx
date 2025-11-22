@@ -183,7 +183,7 @@ const AddVideoPage: React.FC = () => {
                             <Button
                                 type="submit"
                                 size="lg"
-                                className="bg-gradient-to-r from-cyan-500 to-purple-600 hover:from-cyan-600 hover:to-purple-700 text-white font-bold rounded-xl shadow-xl transform transition-all duration-300 hover:scale-105 flex-1 flex items-center justify-center gap-3"
+                                className="py-2 bg-gradient-to-r from-cyan-500 to-purple-600 hover:from-cyan-600 hover:to-purple-700 text-white font-bold rounded-xl shadow-xl transform transition-all duration-300 hover:scale-105 flex-1 flex items-center justify-center gap-3"
                             >
                                 <FiUpload className="w-5 h-5" />
                                 Upload Video
