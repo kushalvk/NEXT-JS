@@ -115,7 +115,7 @@ const AddCoursePage: React.FC = () => {
 
             if (response?.success) {
                 toast.success(response.message || 'Course uploaded successfully!');
-                router.push('/uploaded-courses');
+                router.push('/uploadCourse');
             } else {
                 toast.error(response?.message || 'Failed to upload course');
             }
