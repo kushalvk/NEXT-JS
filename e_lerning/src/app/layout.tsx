@@ -5,6 +5,7 @@ import HeaderWrapper from "@/components/HeaderWrapper";
 import { Toaster } from 'react-hot-toast';
 import Footer from "@/components/Footer";
 import {AuthProvider} from "@/context/AuthContext";
+import { SpeedInsights } from '@vercel/speed-insights/next';
 
 export const metadata: Metadata = {
   title: "Create Next App",
@@ -24,7 +25,10 @@ export default function RootLayout({
             <Toaster />
             <AuthProvider>
                 <HeaderWrapper />
-                    <main>{children}</main>
+                    <main>
+                        {children}
+                        <SpeedInsights />
+                    </main>
                 <Footer />
             </AuthProvider>
         </body>
