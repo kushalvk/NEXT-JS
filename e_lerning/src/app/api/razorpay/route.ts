@@ -1,65 +1,44 @@
+// app/api/razorpay/route.ts
 import Razorpay from "razorpay";
+import { NextRequest } from "next/server";
 
 const razorpay = new Razorpay({
-    key_id: process.env.RAZORPAY_KEY_ID!,
+    key_id: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID!,
     key_secret: process.env.RAZORPAY_KEY_SECRET!,
 });
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
     try {
-        const { amount, currency, uploaderAccountId, courseIds } = await req.json();
+        const body = await req.json();
+        const { amount, currency = "INR", courseIds } = body;
 
-        if (!amount || !currency || !courseIds || courseIds.length === 0) {
-            return Response.json({
-                success: false,
-                message: "Amount, currency and at least one courseId required",
-            }, { status: 400 });
+        if (!amount || amount <= 0 || !courseIds || courseIds.length === 0) {
+            return Response.json(
+                { success: false, message: "Invalid amount or courseIds" },
+                { status: 400 }
+            );
         }
 
-        // Razorpay order params
-        const options = {
-            amount: amount * 100, // amount in paise
-            currency: currency,
-            receipt: `rcpt_${Date.now()}`, // ✅ <= 40 chars
+        const order = await razorpay.orders.create({
+            amount: amount * 100, // already in rupees → convert to paise
+            currency,
+            receipt: `receipt_${Date.now()}`,
             notes: {
-                courses: Array.isArray(courseIds) ? courseIds.join(",") : courseIds,
-                uploaderAccountId,
+                courseIds: courseIds.join(","),
             },
-        };
-
-        const order = await razorpay.orders.create(options);
+        });
 
         return Response.json({
             success: true,
-            order,
-        }, { status: 200 });
-    } catch (err) {
-        console.error("Error creating Razorpay order:", err);
-        return Response.json({
-            success: false,
-            message: "Failed to create order",
-            error: err,
-        }, { status: 500 });
+            id: order.id,
+            amount: order.amount,
+            currency: order.currency,
+        });
+    } catch (error) {
+        console.error("Razorpay order error:", error);
+        return Response.json(
+            { success: false || "Failed to create order" },
+            { status: 500 }
+        );
     }
 }
-
-// transfers: [
-            //     {
-            //         account: uploaderAccountId,
-            //         amount: Math.floor(amount * 100 * 0.95),
-            //         currency: currency || 'INR',
-            //         notes: {
-            //             courseId,
-            //             role: 'Uploader',
-            //         },
-            //     },
-            //     {
-            //         account: process.env.MY_ACCOUNT_ID,
-            //         amount: Math.floor(amount * 100 * 0.05),
-            //         currency: currency || 'INR',
-            //         notes: {
-            //             courseId,
-            //             role: 'Platform Commission',
-            //         },
-            //     },
-            // ],

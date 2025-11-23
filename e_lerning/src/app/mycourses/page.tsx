@@ -138,7 +138,7 @@ const MyCoursesPage: React.FC = () => {
                             <Button asChild size="lg" className="bg-white/10 backdrop-blur-xl border border-white/20 hover:bg-white/20 text-white font-bold px-10 py-6 rounded-2xl shadow-xl">
                                 <Link href="/courses">Explore More Courses</Link>
                             </Button>
-                            <Button asChild variant="outline" size="lg" className="border-2 border-white/30 hover:bg-white/10 backdrop-blur-xl text-white font-semibold px-10 py-6 rounded-2xl">
+                            <Button asChild variant="outline" size="lg" className="border-2 border-white/30 hover:bg-white/10 backdrop-blur-xl text-black font-semibold px-10 py-6 rounded-2xl">
                                 <Link href="/profile">View Profile</Link>
                             </Button>
                         </div>
@@ -242,10 +242,10 @@ const MyCoursesPage: React.FC = () => {
                                                     <Button
                                                         variant="outline"
                                                         size="icon"
-                                                        className="border-white/30 hover:bg-white/10"
+                                                        className="w-11 h-11 border-white/30 bg-white/10"
                                                         onClick={() => toggleLike(course.courseId._id)}
                                                     >
-                                                        <FaHeart className={`w-5 h-5 ${likedCourses.includes(course.courseId._id) ? 'text-pink-500' : 'text-white/70'}`} />
+                                                        <FaHeart className={`w-5 h-5 ${likedCourses.includes(course.courseId._id) ? 'text-pink-500' : 'text-black/50'}`} />
                                                     </Button>
                                                 </div>
                                             </div>

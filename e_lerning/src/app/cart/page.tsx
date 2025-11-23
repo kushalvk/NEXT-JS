@@ -260,15 +260,15 @@ const CartPage: React.FC = () => {
             const { data } = await axios.post<RazorpayOrder>(
                 '/api/razorpay',
                 {
-                    amount: totalPrice * 100, // in paise
+                    amount: totalPrice, // in paise
                     currency: 'INR',
                     courseIds,
                 },
-                { headers: { Authorization: token } }
+                { headers: { Authorization: token, 'Content-Type': 'application/json' } }
             );
 
             const options = {
-                key: process.env.RAZORPAY_KEY_ID!,
+                key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID!,
                 amount: data.amount,
                 currency: data.currency,
                 name: 'VK Learning Platform',
@@ -276,7 +276,7 @@ const CartPage: React.FC = () => {
                 order_id: data.id,
                 handler: async (response: RazorpayResponse) => {
                     try {
-                        const verifyRes = await axios.post<RazorpayVerifyResponse>('/api/razorpay/verify-payment', {
+                        const verifyRes = await axios.post<RazorpayVerifyResponse>('/api/razorpay/verifyPayment', {
                             razorpay_order_id: response.razorpay_order_id,
                             razorpay_payment_id: response.razorpay_payment_id,
                             razorpay_signature: response.razorpay_signature,
@@ -286,8 +286,8 @@ const CartPage: React.FC = () => {
                             const checkoutRes = await checkoutCourse({ courseIds }) as CheckoutResponse;
                             if (checkoutRes.success) {
                                 toast.success('Payment successful! Courses added.');
-                                setCartItems([]); // Clear cart
-                                router.push('/my-courses');
+                                setCartItems([]);
+                                router.push('/mycourses');
                             } else {
                                 toast.error(checkoutRes.message || 'Checkout failed');
                             }
@@ -430,7 +430,7 @@ const CartPage: React.FC = () => {
                     </p>
                     <Button
                         asChild
-                        className="bg-gradient-to-r from-cyan-500 to-purple-600 hover:from-cyan-600 hover:to-purple-700 text-white font-bold px-8 py-6 rounded-xl text-lg shadow-xl transform transition-all duration-300 hover:scale-105"
+                        className="bg-gradient-to-r from-cyan-500 to-purple-600 hover:from-cyan-600 hover:to-purple-700 text-black font-bold px-8 py-6 rounded-xl text-lg shadow-xl transform transition-all duration-300 hover:scale-105"
                     >
                         <Link href="/courses">Browse All Courses</Link>
                     </Button>
