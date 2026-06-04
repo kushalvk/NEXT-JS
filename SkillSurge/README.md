@@ -1,36 +1,349 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🚀 SkillSurge - Online Learning Platform
 
-## Getting Started
+SkillSurge is a modern E-Learning Platform built with Next.js, TypeScript, MongoDB, Prisma, and Tailwind CSS. The platform enables instructors to create and manage courses while allowing students to purchase courses, track learning progress, and earn certificates upon completion.
 
-First, run the development server:
+---
+
+## 📌 Features
+
+### 👨‍🎓 Student Features
+
+* User Registration & Login
+* JWT Authentication
+* Browse Available Courses
+* Purchase Courses
+* Watch Course Videos
+* Track Learning Progress
+* Add Courses to Favorites
+* Download Course Certificates
+* Responsive User Dashboard
+* Secure Access to Purchased Courses
+
+### 👨‍🏫 Instructor Features
+
+* Create New Courses
+* Upload Course Thumbnails
+* Upload Course Videos
+* Update Course Information
+* Delete Courses
+* Manage Course Content
+* View Published Courses
+
+### 🔒 Authentication & Security
+
+* JWT Based Authentication
+* Protected Routes
+* Role-Based Authorization
+* Secure API Endpoints
+* Password Encryption
+
+### 📊 Progress Tracking
+
+* Track Completed Videos
+* Calculate Course Completion Percentage
+* Save Progress Per User
+* Resume Learning Anytime
+
+### 🏆 Certificate Generation
+
+* Generate Certificates
+* Prevent Duplicate Certificates
+* Verify Course Completion Before Issuing Certificate
+
+---
+
+## 🛠️ Tech Stack
+
+### Frontend
+
+* Next.js 15
+* React.js
+* TypeScript
+* Tailwind CSS
+* ShadCN UI
+* Axios
+
+### Backend
+
+* Next.js API Routes
+* Node.js
+* Prisma ORM
+
+### Database
+
+* MongoDB
+
+### Cloud Storage
+
+* Cloudinary
+
+### Authentication
+
+* JWT (JSON Web Token)
+
+---
+
+## 📂 Project Structure
+
+```bash
+SkillSurge/
+│
+├── app/
+│   ├── api/
+│   ├── dashboard/
+│   ├── courses/
+│   ├── login/
+│   └── register/
+│
+├── components/
+│
+├── lib/
+│   ├── prisma.ts
+│   ├── auth.ts
+│   └── cloudinary.ts
+│
+├── prisma/
+│   └── schema.prisma
+│
+├── public/
+│
+├── types/
+│
+├── middleware.ts
+│
+└── package.json
+```
+
+---
+
+## ⚙️ Installation
+
+### 1. Clone Repository
+
+```bash
+git clone https://github.com/your-username/skillsurge.git
+```
+
+### 2. Navigate to Project
+
+```bash
+cd skillsurge
+```
+
+### 3. Install Dependencies
+
+```bash
+npm install
+```
+
+### 4. Configure Environment Variables
+
+Create a `.env` file in the root directory.
+
+```env
+DATABASE_URL=
+
+JWT_SECRET=
+
+CLOUDINARY_CLOUD_NAME=
+CLOUDINARY_API_KEY=
+CLOUDINARY_API_SECRET=
+```
+
+### 5. Generate Prisma Client
+
+```bash
+npx prisma generate
+```
+
+### 6. Run Database Migration
+
+```bash
+npx prisma db push
+```
+
+### 7. Start Development Server
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+---
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 🚀 API Modules
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### Authentication
 
-## Learn More
+```http
+POST /api/register
+POST /api/login
+```
 
-To learn more about Next.js, take a look at the following resources:
+### Course Management
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```http
+POST   /api/course
+GET    /api/course
+PUT    /api/course
+DELETE /api/course
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Course Purchase
 
-## Deploy on Vercel
+```http
+PUT /api/course/buy
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### Video Progress
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```http
+PUT /api/course/video
+```
+
+### Certificates
+
+```http
+POST /api/certificate
+```
+
+---
+
+## 📸 Main Modules
+
+### Home Page
+
+* Featured Courses
+* Course Categories
+* Modern Landing Page
+
+### Dashboard
+
+* Purchased Courses
+* Favorite Courses
+* Progress Overview
+
+### Course Details
+
+* Course Information
+* Video Lessons
+* Purchase Option
+
+### Learning Section
+
+* Watch Videos
+* Track Progress
+* Continue Learning
+
+### Certificate Section
+
+* Generate Certificate
+* Download Certificate
+
+---
+
+## 🗄️ Database Models
+
+### User
+
+```typescript
+User {
+  id
+  name
+  email
+  password
+  purchasedCourses
+  favoriteCourses
+}
+```
+
+### Course
+
+```typescript
+Course {
+  id
+  title
+  description
+  price
+  thumbnail
+  videos
+  instructor
+}
+```
+
+### Progress
+
+```typescript
+Progress {
+  id
+  userId
+  courseId
+  completedVideos
+}
+```
+
+### Certificate
+
+```typescript
+Certificate {
+  id
+  userId
+  courseId
+  issuedAt
+}
+```
+
+---
+
+## 💡 Future Enhancements
+
+* Razorpay Integration
+* Instructor Dashboard Analytics
+* Course Reviews & Ratings
+* Live Classes
+* Discussion Forum
+* Email Notifications
+* Admin Panel
+* AI-Powered Course Recommendations
+* Multi-Language Support
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome!
+
+1. Fork the repository
+2. Create a feature branch
+3. Commit your changes
+4. Push to your branch
+5. Create a Pull Request
+
+---
+
+## 📄 License
+
+This project is licensed under the MIT License.
+
+---
+
+## 👨‍💻 Developer
+
+**Kushal Vaghela**
+
+Full Stack Developer
+
+### Skills
+
+* Next.js
+* React.js
+* TypeScript
+* Node.js
+* MongoDB
+* Prisma
+* Tailwind CSS
+* Java
+* Spring Boot
+
+---
+
+⭐ If you like this project, don't forget to star the repository!
