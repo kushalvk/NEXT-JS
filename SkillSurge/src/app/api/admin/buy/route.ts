@@ -1,5 +1,6 @@
 import dbConnect from "@/app/lib/dbConnect";
 import {getVerifiedUser} from "@/utils/verifyRequest";
+import {isAdmin} from "@/utils/roles";
 import UserModel from "@/models/User";
 
 export async function GET(req: Request) {
@@ -9,7 +10,7 @@ export async function GET(req: Request) {
         const {user, errorResponse} = await getVerifiedUser(req);
         if (errorResponse) return errorResponse;
 
-        if (user.Username !== "Admin") {
+        if (!isAdmin(user)) {
             return Response.json({
                 success: false,
                 message: "You are not authorized to get all Users who buy course",

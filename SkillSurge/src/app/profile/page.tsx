@@ -1,21 +1,16 @@
 'use client';
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, {useCallback, useEffect, useState} from 'react';
 import Link from 'next/link';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
-import { loggedUser, updatedProfile } from '@/services/AuthService';
 import toast from 'react-hot-toast';
-import { useRouter } from 'next/navigation';
-import { motion } from 'framer-motion';
-import { Edit2, Save, User as UserIcon, Mail, Calendar, CreditCard } from 'lucide-react';
-import {User} from "@/models/User";
-
-// ------------------------------------------------------------------
-// Types
-// ------------------------------------------------------------------
+import {useRouter} from 'next/navigation';
+import {Calendar, CreditCard, Mail, User as UserIcon} from 'lucide-react';
+import {loggedUser, updatedProfile} from '@/services/AuthService';
+import {User} from '@/models/User';
+import PageHeader from '@/components/PageHeader';
+import Loader from '@/components/Loader';
+import {Button} from '@/components/ui/button';
+import {Input} from '@/components/ui/input';
 
 interface LoggedUserResponse {
     success: boolean;
@@ -27,18 +22,20 @@ interface UpdateProfileResponse {
     message?: string;
 }
 
-// ------------------------------------------------------------------
-// Main Component
-// ------------------------------------------------------------------
+const FIELDS = [
+    {name: 'fullName', key: 'Full_name' as const, label: 'Full name', Icon: UserIcon, type: 'text', placeholder: 'Ada Lovelace'},
+    {name: 'username', key: 'Username' as const, label: 'Username', Icon: UserIcon, type: 'text', placeholder: 'yourusername'},
+    {name: 'email', key: 'Email' as const, label: 'Email', Icon: Mail, type: 'email', placeholder: 'you@example.com'},
+    {name: 'razorpayId', key: 'RazorpayId' as const, label: 'Razorpay ID', Icon: CreditCard, type: 'text', placeholder: 'Optional'},
+];
+
 const ProfilePage: React.FC = () => {
     const router = useRouter();
     const [isEditing, setIsEditing] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
+    const [isSaving, setIsSaving] = useState(false);
     const [userData, setUserData] = useState<User | null>(null);
 
-    // ----------------------------------------------------------------
-    // Fetch User Data
-    // ----------------------------------------------------------------
     const fetchUserData = useCallback(async () => {
         setIsLoading(true);
         try {
@@ -46,7 +43,7 @@ const ProfilePage: React.FC = () => {
             if (response?.success) {
                 setUserData(response.User);
             } else {
-                toast.error('Failed to load profile');
+                toast.error('Please sign in to view your profile');
                 router.push('/login');
             }
         } catch (err) {
@@ -62,19 +59,16 @@ const ProfilePage: React.FC = () => {
         fetchUserData();
     }, [fetchUserData]);
 
-    // ----------------------------------------------------------------
-    // Handle Edit / Save
-    // ----------------------------------------------------------------
-    const handleEdit = () => setIsEditing(true);
-
     const handleCancel = () => {
         setIsEditing(false);
-        fetchUserData(); // Revert changes
+        fetchUserData();
     };
 
-    const handleSave = async () => {
+    const handleSave = async (e: React.FormEvent) => {
+        e.preventDefault();
         if (!userData) return;
 
+        setIsSaving(true);
         const loadingToast = toast.loading('Updating profile...');
 
         try {
@@ -87,269 +81,155 @@ const ProfilePage: React.FC = () => {
             const response = await updatedProfile(formData) as UpdateProfileResponse;
 
             if (response?.success) {
-                toast.success('Profile updated successfully!');
+                toast.success('Profile updated', {id: loadingToast});
                 setIsEditing(false);
             } else {
-                toast.error(response?.message || 'Failed to update profile');
+                // A demo rejection already shows its own toast from the interceptor.
+                toast.dismiss(loadingToast);
+                if (response?.message) toast.error(response.message);
+                handleCancel();
             }
         } catch (err) {
             console.error('Update error:', err);
-            toast.error('Something went wrong');
+            toast.error('Something went wrong', {id: loadingToast});
         } finally {
-            toast.dismiss(loadingToast);
+            setIsSaving(false);
         }
     };
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const { name, value } = e.target;
+        const {name, value} = e.target;
 
-        setUserData((prev) => {
-            if (!prev) return prev;
+        const fieldMap: Record<string, keyof User> = {
+            username: 'Username',
+            email: 'Email',
+            fullName: 'Full_name',
+            razorpayId: 'RazorpayId',
+        };
 
-            const fieldMap: Record<string, keyof User> = {
-                username: 'Username',
-                email: 'Email',
-                fullName: 'Full_name',
-                razorpayId: 'RazorpayId',
-            };
+        const userField = fieldMap[name];
+        if (!userField) return;
 
-            const userField = fieldMap[name];
-            if (!userField) return prev;
-
-            // Spread + type assertion to satisfy TypeScript
-            return {
-                ...prev,
-                [userField]: value,
-            } as User; // This fixes the error
-        });
+        setUserData((prev) => (prev ? ({...prev, [userField]: value} as User) : prev));
     };
 
-    // ----------------------------------------------------------------
-    // Render
-    // ----------------------------------------------------------------
     if (isLoading) {
-        return <ProfileSkeleton />;
+        return (
+            <div className="container-page page-shell">
+                <Loader fullPage label="Loading your profile"/>
+            </div>
+        );
     }
 
-    if (!userData) {
-        return <div className="text-white text-center">No user data found.</div>;
-    }
+    if (!userData) return null;
+
+    const joined = userData.createdAt
+        ? new Date(userData.createdAt).toLocaleDateString('en-IN', {day: 'numeric', month: 'long', year: 'numeric'})
+        : null;
+
+    const stats = [
+        {label: 'Courses bought', value: userData.Buy_Course?.length ?? 0, href: '/mycourses'},
+        {label: 'Certificates', value: userData.Certificate?.length ?? 0, href: '/mycourses'},
+        {label: 'Favourites', value: userData.Favourite?.length ?? 0, href: '/favorite'},
+        {label: 'Courses uploaded', value: userData.Upload_Course?.length ?? 0, href: '/uploadCourse'},
+    ];
 
     return (
-        <>
-            {/* Animated Background */}
-            <div className="fixed inset-0 -z-10 overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-br from-blue-900 via-indigo-900 to-purple-900" />
-                <div className="absolute top-0 right-0 w-96 h-96 bg-cyan-500/20 rounded-full blur-3xl animate-pulse" />
-                <div className="absolute bottom-0 left-0 w-80 h-80 bg-pink-500/20 rounded-full blur-3xl animate-pulse delay-700" />
-            </div>
+        <div className="animate-fade-in">
+            <PageHeader
+                eyebrow="Account"
+                title="Profile"
+                description="Your account details and a snapshot of your activity."
+                actions={
+                    !isEditing && (
+                        <Button onClick={() => setIsEditing(true)}>Edit profile</Button>
+                    )
+                }
+            />
 
-            <div className="min-h-screen flex flex-col items-center p-4 sm:p-6 lg:p-8 pt-20 lg:pt-24 font-sans mt-21">
-                {/* Header */}
-                <motion.div
-                    initial={{ y: -30, opacity: 0 }}
-                    animate={{ y: 0, opacity: 1 }}
-                    className="w-full max-w-4xl text-center mb-12"
-                >
-                    <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-white mb-4 tracking-tight">
-                        Your Profile
-                    </h1>
-                    <p className="text-gray-300 text-lg">
-                        Manage your account and track your learning journey.
-                    </p>
-                </motion.div>
+            <div className="container-page page-shell">
+                <div className="grid gap-6 lg:grid-cols-3 lg:gap-8">
 
-                {/* Profile Card */}
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.2 }}
-                    className="w-full max-w-2xl"
-                >
-                    <Card className="bg-white/10 backdrop-blur-xl border border-white/20 shadow-2xl">
-                        <CardHeader className="flex flex-row items-center justify-between pb-6">
-                            <CardTitle className="text-2xl font-bold text-white flex items-center gap-3">
-                                <UserIcon className="w-7 h-7 text-cyan-400" />
-                                Account Details
-                            </CardTitle>
-                            {!isEditing ? (
-                                <Button
-                                    onClick={handleEdit}
-                                    variant="outline"
-                                    className="border-white/30 hover:bg-white/10"
+                    {/* Identity card */}
+                    <aside className="min-w-0 lg:col-span-1">
+                        <div className="surface-card p-6 text-center">
+                            <div className="mx-auto grid h-20 w-20 place-items-center rounded-full bg-brand-600 text-2xl font-bold text-white">
+                                {userData.Username?.[0]?.toUpperCase()}
+                            </div>
+                            <h2 className="mt-4 text-lg font-bold">{userData.Full_name || userData.Username}</h2>
+                            <p className="text-sm text-ink-500">@{userData.Username}</p>
+
+                            {joined && (
+                                <p className="mt-4 inline-flex items-center gap-1.5 text-xs text-ink-500">
+                                    <Calendar className="h-3.5 w-3.5"/>
+                                    Joined {joined}
+                                </p>
+                            )}
+                        </div>
+
+                        <dl className="mt-4 grid grid-cols-2 gap-3">
+                            {stats.map((stat) => (
+                                <Link
+                                    key={stat.label}
+                                    href={stat.href}
+                                    className="surface-card p-4 transition hover:border-brand-300 hover:shadow-e3"
                                 >
-                                    <Edit2 className="w-4 h-4 mr-2" />
-                                    Edit
-                                </Button>
-                            ) : (
-                                <div className="flex gap-2">
-                                    <Button
-                                        onClick={handleCancel}
-                                        variant="outline"
-                                        className="border-white/30 text-white hover:bg-white/10"
-                                    >
+                                    <dt className="text-xs text-ink-500">{stat.label}</dt>
+                                    <dd className="mt-1 text-2xl font-bold">{stat.value}</dd>
+                                </Link>
+                            ))}
+                        </dl>
+                    </aside>
+
+                    {/* Details */}
+                    <section className="min-w-0 lg:col-span-2">
+                        <form onSubmit={handleSave} className="surface-card p-5 sm:p-6">
+                            <h2 className="text-lg font-bold">Account details</h2>
+                            <p className="mt-1 text-sm text-ink-500">
+                                {isEditing ? 'Update your details and save.' : 'Select “Edit profile” to make changes.'}
+                            </p>
+
+                            <div className="mt-6 grid gap-5 sm:grid-cols-2">
+                                {FIELDS.map(({name, key, label, Icon, type, placeholder}) => (
+                                    <div key={name} className={name === 'razorpayId' ? 'sm:col-span-2' : undefined}>
+                                        <label htmlFor={name} className="field-label">{label}</label>
+                                        {isEditing ? (
+                                            <Input
+                                                id={name}
+                                                name={name}
+                                                type={type}
+                                                value={(userData[key] as string) || ''}
+                                                onChange={handleChange}
+                                                placeholder={placeholder}
+                                            />
+                                        ) : (
+                                            <p className="flex min-h-11 items-center gap-2 rounded-lg border border-ink-200 bg-ink-25 px-3.5 text-[0.9375rem] text-ink-800">
+                                                <Icon className="h-4 w-4 shrink-0 text-ink-400"/>
+                                                <span className="truncate">
+                                                    {(userData[key] as string) || <span className="text-ink-400">Not set</span>}
+                                                </span>
+                                            </p>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+
+                            {isEditing && (
+                                <div className="mt-7 flex flex-col gap-3 border-t border-ink-200 pt-5 sm:flex-row sm:justify-end">
+                                    <Button type="button" variant="outline" onClick={handleCancel} disabled={isSaving}>
                                         Cancel
                                     </Button>
-                                    <Button
-                                        onClick={handleSave}
-                                        className="bg-gradient-to-r from-cyan-500 to-purple-600 hover:from-cyan-600 hover:to-purple-700 text-white"
-                                    >
-                                        <Save className="w-4 h-4 mr-2" />
-                                        Save
+                                    <Button type="submit" disabled={isSaving}>
+                                        {isSaving ? 'Saving...' : 'Save changes'}
                                     </Button>
                                 </div>
                             )}
-                        </CardHeader>
-
-                        <CardContent className="space-y-6">
-                            {isEditing ? (
-                                <>
-                                    <div>
-                                        <label className="text-sm font-medium text-gray-300 flex items-center gap-2 mb-2">
-                                            <UserIcon className="w-4 h-4" /> Username
-                                        </label>
-                                        <Input
-                                            name="Username"
-                                            value={userData.Username}
-                                            onChange={handleChange}
-                                            className="bg-white/10 border-white/20 text-white placeholder-gray-400 focus:ring-cyan-400"
-                                        />
-                                    </div>
-
-                                    <div>
-                                        <label className="text-sm font-medium text-gray-300 flex items-center gap-2 mb-2">
-                                            <Mail className="w-4 h-4" /> Email
-                                        </label>
-                                        <Input
-                                            name="Email"
-                                            type="email"
-                                            value={userData.Email}
-                                            onChange={handleChange}
-                                            className="bg-white/10 border-white/20 text-white placeholder-gray-400 focus:ring-cyan-400"
-                                        />
-                                    </div>
-
-                                    <div>
-                                        <label className="text-sm font-medium text-gray-300 flex items-center gap-2 mb-2">
-                                            <UserIcon className="w-4 h-4" /> Full Name
-                                        </label>
-                                        <Input
-                                            name="Full_name"
-                                            value={userData.Full_name}
-                                            onChange={handleChange}
-                                            className="bg-white/10 border-white/20 text-white placeholder-gray-400 focus:ring-cyan-400"
-                                        />
-                                    </div>
-
-                                    <div>
-                                        <label className="text-sm font-medium text-gray-300 flex items-center gap-2 mb-2">
-                                            <CreditCard className="w-4 h-4" /> Razorpay ID
-                                        </label>
-                                        <Input
-                                            name="RazorpayId"
-                                            value={userData.RazorpayId || ''}
-                                            onChange={handleChange}
-                                            placeholder="Optional"
-                                            className="bg-white/10 border-white/20 text-white placeholder-gray-400 focus:ring-cyan-400"
-                                        />
-                                    </div>
-                                </>
-                            ) : (
-                                <>
-                                    <div className="space-y-3">
-                                        <div className="flex items-center gap-3 text-white">
-                                            <UserIcon className="w-5 h-5 text-cyan-400" />
-                                            <span className="font-medium">Username:</span>
-                                            <span className="text-gray-300">{userData.Username}</span>
-                                        </div>
-
-                                        <div className="flex items-center gap-3 text-white">
-                                            <Mail className="w-5 h-5 text-cyan-400" />
-                                            <span className="font-medium">Email:</span>
-                                            <span className="text-gray-300">{userData.Email}</span>
-                                        </div>
-
-                                        <div className="flex items-center gap-3 text-white">
-                                            <UserIcon className="w-5 h-5 text-cyan-400" />
-                                            <span className="font-medium">Full Name:</span>
-                                            <span className="text-gray-300">{userData.Full_name}</span>
-                                        </div>
-
-                                        <div className="flex items-center gap-3 text-white">
-                                            <Calendar className="w-5 h-5 text-cyan-400" />
-                                            <span className="font-medium">Joined:</span>
-                                            <span className="text-gray-300">
-                        {userData.createdAt
-                            ? new Date(userData.createdAt).toLocaleDateString('en-US', {
-                                year: 'numeric',
-                                month: 'long',
-                                day: 'numeric',
-                            })
-                            : '—'}
-                      </span>
-                                        </div>
-
-                                        <div className="flex items-center gap-3 text-white">
-                                            <CreditCard className="w-5 h-5 text-cyan-400" />
-                                            <span className="font-medium">Razorpay ID:</span>
-                                            <span className="text-gray-300">
-                        {userData.RazorpayId || 'Not linked'}
-                      </span>
-                                        </div>
-                                    </div>
-                                </>
-                            )}
-                        </CardContent>
-                    </Card>
-                </motion.div>
-
-                {/* CTA */}
-                <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 0.4 }}
-                    className="w-full max-w-4xl text-center mt-16 mb-10"
-                >
-                    <h2 className="text-3xl sm:text-4xl font-extrabold text-white mb-4">
-                        Keep Learning
-                    </h2>
-                    <p className="text-gray-300 text-lg mb-8 max-w-2xl mx-auto">
-                        Explore new courses and continue building your skills.
-                    </p>
-                    <Button
-                        asChild
-                        className="bg-gradient-to-r from-cyan-500 to-purple-600 hover:from-cyan-600 hover:to-purple-700 text-white font-bold px-8 py-6 rounded-xl text-lg shadow-xl transform transition-all duration-300 hover:scale-105"
-                    >
-                        <Link href="/courses">Browse All Courses</Link>
-                    </Button>
-                </motion.div>
+                        </form>
+                    </section>
+                </div>
             </div>
-        </>
+        </div>
     );
 };
-
-// ------------------------------------------------------------------
-// Skeleton Loader
-// ------------------------------------------------------------------
-const ProfileSkeleton = () => (
-    <div className="min-h-screen flex flex-col items-center p-4 sm:p-6 lg:p-8 pt-20">
-        <div className="w-full max-w-2xl space-y-8">
-            <Skeleton className="h-12 w-64 mx-auto bg-white/10" />
-            <Card className="bg-white/10 backdrop-blur-xl border border-white/20">
-                <CardHeader>
-                    <Skeleton className="h-8 w-48 bg-white/10" />
-                </CardHeader>
-                <CardContent className="space-y-6">
-                    {[...Array(5)].map((_, i) => (
-                        <div key={i} className="space-y-2">
-                            <Skeleton className="h-4 w-32 bg-white/10" />
-                            <Skeleton className="h-10 w-full bg-white/20" />
-                        </div>
-                    ))}
-                </CardContent>
-            </Card>
-        </div>
-    </div>
-);
 
 export default ProfilePage;

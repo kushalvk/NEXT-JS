@@ -1,29 +1,24 @@
 import dbConnect from "@/app/lib/dbConnect";
 import {getVerifiedUser} from "@/utils/verifyRequest";
-import UserModel from "@/models/User";
 import CourseModel from "@/models/Course";
+import {ok, serverError} from "@/utils/apiResponse";
 
 export async function GET(req: Request) {
-    await dbConnect();
-
     try {
+        await dbConnect();
+
         const {user, errorResponse} = await getVerifiedUser(req);
         if (errorResponse) return errorResponse;
 
-        const latestUser = await UserModel.findById(user._id);
+        // Query by owner directly (served by the Username index) instead of
+        // re-reading the user to get their Upload_Course array first.
+        const Course = await CourseModel.find({Username: user._id})
+            .select("Image Course_Name Description Department Price createdAt Video.Description")
+            .sort({createdAt: -1})
+            .lean();
 
-        const updatedUser = await CourseModel.find({_id: latestUser.Upload_Course});
-
-        return Response.json({
-            success: true,
-            message: "Uploaded course fetch successfully",
-            Course: updatedUser,
-        });
+        return ok("Uploaded course fetch successfully", {Course});
     } catch (error) {
-        console.error("Error at fetching user uploaded course ", error);
-        return Response.json({
-            success: false,
-            message: "Could not fetch user uploaded course"
-        }, {status: 500});
+        return serverError("uploadcourse", error);
     }
 }

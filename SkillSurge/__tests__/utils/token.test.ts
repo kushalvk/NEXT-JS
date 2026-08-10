@@ -7,7 +7,8 @@ jest.mock('jsonwebtoken', () => ({
 
 describe('generateToken', () => {
     it('should generate a token using jwt.sign', () => {
-        const mockPayload = { user: { id: '123' } };
+        // The payload carries an identity only - never the user document.
+        const mockPayload = { user: { _id: '123', Username: 'ada' } };
         const mockToken = 'fake.jwt.token';
         (jwt.sign as jest.Mock).mockReturnValue(mockToken);
 

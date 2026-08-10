@@ -3,52 +3,92 @@
 
 @custom-variant dark (&:is(.dark *));
 
-.animate-float {
-  animation: float 6s ease-in-out infinite;
-}
+/* ==========================================================================
+   Design tokens
+   Light surfaces for content, near-black ink, one indigo brand accent.
+   The dark navbar/footer use the `--ink-*` scale directly.
+   ========================================================================== */
 
-@keyframes float {
-  0% {
-    transform: translateY(0px);
-  }
-  50% {
-    transform: translateY(-20px);
-  }
-  100% {
-    transform: translateY(0px);
-  }
-}
+:root {
+  --radius: 0.75rem;
 
-.animate-fade-in {
-  animation: fadeIn 1s ease-in;
-}
+  /* Brand */
+  --brand-50: oklch(0.962 0.018 272);
+  --brand-100: oklch(0.930 0.036 272);
+  --brand-200: oklch(0.870 0.070 272);
+  --brand-300: oklch(0.790 0.110 272);
+  --brand-400: oklch(0.690 0.160 272);
+  --brand-500: oklch(0.600 0.196 272);
+  --brand-600: oklch(0.530 0.207 272);
+  --brand-700: oklch(0.455 0.190 272);
+  --brand-800: oklch(0.390 0.160 272);
+  --brand-900: oklch(0.330 0.130 272);
 
-@keyframes fadeIn {
-  0% {
-    opacity: 0;
-    transform: translateY(-10px);
-  }
-  100% {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
+  /* Neutral ink scale - cool slate */
+  --ink-25: oklch(0.988 0.002 258);
+  --ink-50: oklch(0.975 0.004 258);
+  --ink-100: oklch(0.950 0.006 258);
+  --ink-200: oklch(0.912 0.008 258);
+  --ink-300: oklch(0.855 0.011 258);
+  --ink-400: oklch(0.700 0.016 258);
+  --ink-500: oklch(0.578 0.019 258);
+  --ink-600: oklch(0.470 0.022 258);
+  --ink-700: oklch(0.385 0.024 258);
+  --ink-800: oklch(0.285 0.024 262);
+  --ink-900: oklch(0.215 0.026 266);
+  --ink-950: oklch(0.155 0.026 268);
 
-@layer utilities {
-  .animate-fade-in {
-    animation: fadeIn 1s ease-out forwards;
-  }
-  .animate-slide-in {
-    animation: slideIn 1s ease-out forwards;
-  }
-  @keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
-  }
-  @keyframes slideIn {
-    from { opacity: 0; transform: translateY(20px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
+  /* Semantic */
+  --success: oklch(0.585 0.145 155);
+  --success-soft: oklch(0.950 0.040 155);
+  --warning: oklch(0.720 0.150 75);
+  --warning-soft: oklch(0.960 0.055 85);
+  --danger: oklch(0.577 0.223 27);
+  --danger-soft: oklch(0.955 0.035 20);
+
+  /* shadcn surface mapping */
+  --background: var(--ink-25);
+  --foreground: var(--ink-900);
+  --card: oklch(1 0 0);
+  --card-foreground: var(--ink-900);
+  --popover: oklch(1 0 0);
+  --popover-foreground: var(--ink-900);
+  --primary: var(--brand-600);
+  --primary-foreground: oklch(1 0 0);
+  --secondary: var(--ink-100);
+  --secondary-foreground: var(--ink-800);
+  --muted: var(--ink-100);
+  --muted-foreground: var(--ink-500);
+  --accent: var(--brand-50);
+  --accent-foreground: var(--brand-700);
+  --destructive: var(--danger);
+  --border: var(--ink-200);
+  --input: var(--ink-300);
+  --ring: var(--brand-500);
+
+  --chart-1: var(--brand-500);
+  --chart-2: oklch(0.640 0.140 200);
+  --chart-3: oklch(0.700 0.150 145);
+  --chart-4: oklch(0.750 0.150 75);
+  --chart-5: oklch(0.640 0.190 15);
+
+  --sidebar: oklch(1 0 0);
+  --sidebar-foreground: var(--ink-900);
+  --sidebar-primary: var(--brand-600);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: var(--ink-100);
+  --sidebar-accent-foreground: var(--ink-800);
+  --sidebar-border: var(--ink-200);
+  --sidebar-ring: var(--brand-500);
+
+  /* Elevation - tuned low so cards read as paper, not plastic */
+  --shadow-e1: 0 1px 2px 0 oklch(0.215 0.026 266 / 0.05);
+  --shadow-e2: 0 1px 3px 0 oklch(0.215 0.026 266 / 0.07), 0 1px 2px -1px oklch(0.215 0.026 266 / 0.06);
+  --shadow-e3: 0 4px 12px -2px oklch(0.215 0.026 266 / 0.10), 0 2px 4px -2px oklch(0.215 0.026 266 / 0.06);
+  --shadow-e4: 0 12px 28px -6px oklch(0.215 0.026 266 / 0.14), 0 4px 10px -4px oklch(0.215 0.026 266 / 0.07);
+
+  /* Fixed navbar height, used for scroll offsets and sticky positions */
+  --nav-h: 4rem;
 }
 
 @theme inline {
@@ -56,6 +96,10 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 10px);
+
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -87,82 +131,170 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
-}
 
-:root {
-  --radius: 0.625rem;
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-}
+  --color-brand-50: var(--brand-50);
+  --color-brand-100: var(--brand-100);
+  --color-brand-200: var(--brand-200);
+  --color-brand-300: var(--brand-300);
+  --color-brand-400: var(--brand-400);
+  --color-brand-500: var(--brand-500);
+  --color-brand-600: var(--brand-600);
+  --color-brand-700: var(--brand-700);
+  --color-brand-800: var(--brand-800);
+  --color-brand-900: var(--brand-900);
 
-.dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --color-ink-25: var(--ink-25);
+  --color-ink-50: var(--ink-50);
+  --color-ink-100: var(--ink-100);
+  --color-ink-200: var(--ink-200);
+  --color-ink-300: var(--ink-300);
+  --color-ink-400: var(--ink-400);
+  --color-ink-500: var(--ink-500);
+  --color-ink-600: var(--ink-600);
+  --color-ink-700: var(--ink-700);
+  --color-ink-800: var(--ink-800);
+  --color-ink-900: var(--ink-900);
+  --color-ink-950: var(--ink-950);
+
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+
+  --shadow-e1: var(--shadow-e1);
+  --shadow-e2: var(--shadow-e2);
+  --shadow-e3: var(--shadow-e3);
+  --shadow-e4: var(--shadow-e4);
 }
 
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "cv11", "ss01";
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Anchor targets clear the fixed navbar */
+  :target {
+    scroll-margin-top: calc(var(--nav-h) + 1rem);
+  }
+
+  h1, h2, h3, h4 {
+    @apply text-ink-900 tracking-tight;
+    text-wrap: balance;
+  }
+
+  /* Consistent, visible focus for keyboard users only */
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-brand-500;
+  }
+}
+
+@layer components {
+  /* One page gutter everywhere: 16px phone, 24px tablet, 32px desktop */
+  .container-page {
+    @apply mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8;
+  }
+
+  .container-prose {
+    @apply mx-auto w-full max-w-3xl px-4 sm:px-6;
+  }
+
+  /* Vertical rhythm for a page below the fixed navbar */
+  .page-shell {
+    @apply min-h-[calc(100vh-var(--nav-h))] pt-6 pb-20 sm:pt-8;
+  }
+
+  .surface-card {
+    @apply rounded-xl border border-ink-200 bg-card shadow-e2;
+  }
+
+  .eyebrow {
+    @apply text-xs font-semibold uppercase tracking-[0.08em] text-brand-600;
+  }
+
+  /* Inputs: one look for native controls and shadcn wrappers alike */
+  .field-label {
+    @apply mb-1.5 block text-sm font-medium text-ink-800;
+  }
+
+  .field-input {
+    @apply w-full rounded-lg border border-ink-300 bg-white px-3.5 py-2.5 text-[0.9375rem] text-ink-900
+    placeholder:text-ink-400 shadow-e1 transition
+    focus:border-brand-500 focus:outline-none focus:ring-4 focus:ring-brand-500/12
+    disabled:cursor-not-allowed disabled:bg-ink-50 disabled:text-ink-400;
+  }
+
+  .field-hint {
+    @apply mt-1.5 text-xs text-ink-500;
+  }
+
+  .chip {
+    @apply inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold whitespace-nowrap;
+  }
+
+  /* Cards that lift slightly on pointer devices only */
+  .card-interactive {
+    @apply transition duration-200;
+  }
+
+  @media (hover: hover) {
+    .card-interactive:hover {
+      @apply -translate-y-1 shadow-e4;
+    }
+  }
+
+  /* Skeleton shimmer for loading grids */
+  .skeleton {
+    @apply animate-pulse rounded-lg bg-ink-100;
+  }
+}
+
+@layer utilities {
+  .animate-fade-in {
+    animation: fade-in 0.45s ease-out both;
+  }
+
+  .animate-rise {
+    animation: rise 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  /* Clamp helpers keep card titles/descriptions from breaking the grid */
+  .line-clamp-1 { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
+  .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .line-clamp-3 { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+
+  /* Horizontal scrollers (category rails) without a visible scrollbar */
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes rise {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Respect reduced-motion: keep state changes, drop the movement */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .card-interactive:hover {
+    transform: none;
   }
 }

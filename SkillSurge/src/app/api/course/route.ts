@@ -1,329 +1,279 @@
 import dbConnect from "@/app/lib/dbConnect";
 import CourseModel from "@/models/Course";
-import { uploadBufferToCloudinary } from "@/utils/cloudinary";
-import {getVerifiedUser} from "@/utils/verifyRequest";
 import UserModel from "@/models/User";
-// ...existing code...
+import {uploadBufferToCloudinary} from "@/utils/cloudinary";
+import {getVerifiedUser} from "@/utils/verifyRequest";
+import {badRequest, forbidden, isValidObjectId, notFound, ok, serverError} from "@/utils/apiResponse";
+
+const MAX_VIDEO_BYTES = 30 * 1024 * 1024;
+
+/**
+ * Fields a course card needs. `Video.Description` (not `Video_Url`) keeps the
+ * lesson count available to the UI without shipping every video URL - the
+ * listing payload is roughly a third smaller as a result.
+ */
+const CARD_FIELDS = "Image Course_Name Description Department Price Username createdAt Video.Description";
+
+function parsePrice(raw: string | undefined): number | null {
+    if (raw === undefined || raw === "") return 0;
+    const price = Number(raw);
+    if (!Number.isFinite(price) || price < 0) return null;
+    return Math.round(price);
+}
 
 export async function POST(req: Request) {
-    await dbConnect();
-
     try {
+        await dbConnect();
+
         const formData = await req.formData();
 
         const video = formData.get("Video") as File | null;
         const image = formData.get("Image") as File | null;
 
         if (!video && !image) {
-            return Response.json({
-                success: false,
-                message: "At least one file (video or image) is required.",
-            }, {status: 400});
+            return badRequest("At least one file (video or image) is required.");
         }
 
-        let resultVideo: { secure_url: string } | null = null;
-        let resultImage: { secure_url: string } | null = null;
-
-        if (video) {
-            // Limit video size to 30MB
-            if (video.size > 30 * 1024 * 1024) {
-                return Response.json({
-                    success: false,
-                    message: "Video file size must be 30MB or less.",
-                }, { status: 400 });
-            }
-            const bytesVideo = await video.arrayBuffer();
-            const bufferVideo = Buffer.from(bytesVideo);
-            resultVideo = await uploadBufferToCloudinary(bufferVideo, "video", "courses") as { secure_url: string };
-        }
-
-        if (image) {
-            const bytesImage = await image.arrayBuffer();
-            const bufferImage = Buffer.from(bytesImage);
-            resultImage = await uploadBufferToCloudinary(bufferImage, "image", "courses") as { secure_url: string };
-        }
-
-        const Course_Name = formData.get("Course_Name")?.toString() || "";
-        const Description = formData.get("Description")?.toString() || "";
-        const Department = formData.get("Department")?.toString() || "";
-        const Video_Description = formData.get("Video_Description")?.toString() || "";
-        const Price = formData.get("Price")?.toString() || "";
+        const Course_Name = formData.get("Course_Name")?.toString().trim() || "";
+        const Description = formData.get("Description")?.toString().trim() || "";
+        const Department = formData.get("Department")?.toString().trim() || "";
+        const Video_Description = formData.get("Video_Description")?.toString().trim() || "";
+        const price = parsePrice(formData.get("Price")?.toString());
 
         if (!(Course_Name && Description && Department)) {
-            return Response.json({
-                success: false,
-                message: "All fields are required",
-            }, {status: 400});
+            return badRequest("All fields are required");
         }
 
+        if (price === null) return badRequest("Price must be a positive number");
+
+        // Authorize before touching Cloudinary, so a rejected request (e.g. the
+        // read-only demo account) never uploads anything.
         const {user, errorResponse} = await getVerifiedUser(req);
         if (errorResponse) return errorResponse;
 
-        const newCourse = new CourseModel({
+        if (video && video.size > MAX_VIDEO_BYTES) {
+            return badRequest("Video file size must be 30MB or less.");
+        }
+
+        // Upload both files concurrently rather than one after the other.
+        const [resultVideo, resultImage] = await Promise.all([
+            video
+                ? video.arrayBuffer().then((bytes) =>
+                    uploadBufferToCloudinary(Buffer.from(bytes), "video", "courses") as Promise<{secure_url: string}>)
+                : Promise.resolve(null),
+            image
+                ? image.arrayBuffer().then((bytes) =>
+                    uploadBufferToCloudinary(Buffer.from(bytes), "image", "courses") as Promise<{secure_url: string}>)
+                : Promise.resolve(null),
+        ]);
+
+        const newCourse = await CourseModel.create({
             Image: resultImage ? resultImage.secure_url : undefined,
             Course_Name,
             Description,
             Department,
-            Price,
+            Price: price,
             Username: user._id,
-            Video: resultVideo ? {
-                Video_Url: resultVideo.secure_url,
-                Description: Video_Description
-            } : undefined,
+            Video: resultVideo
+                ? [{Video_Url: resultVideo.secure_url, Description: Video_Description}]
+                : [],
         });
 
-        await newCourse.save();
-        const userUpdateId = user._id;
+        const updateUser = await UserModel.findByIdAndUpdate(
+            user._id,
+            {$addToSet: {Upload_Course: newCourse._id}},
+            {new: true, projection: "_id"}
+        ).lean();
 
-        const updateUser = await UserModel.findOneAndUpdate(
-            {_id: userUpdateId},
-            {$push: {Upload_Course: newCourse._id}},
-            {new: true}
-        );
+        if (!updateUser) {
+            // Do not leave an orphaned course behind if the owner vanished.
+            await CourseModel.findByIdAndDelete(newCourse._id);
+            return badRequest("User not able to upload course! try again");
+        }
 
-        if (!updateUser) return Response.json({
-            success: false,
-            message: "User not able to upload course! try again",
-        }, {status: 400});
-
-        return Response.json({
-            success: true,
-            message: "Course added successfully",
-        }, {status: 200});
-
+        return ok("Course added successfully", {courseId: newCourse._id});
     } catch (error) {
-        console.error("Error at adding Course", error);
-        return Response.json({
-            success: false,
-            message: "Error at adding Course",
-        }, {status: 500});
+        return serverError("course:POST", error);
     }
 }
 
 export async function PUT(req: Request) {
-    await dbConnect();
-
     try {
+        await dbConnect();
+
         const formData = await req.formData();
         const courseId = formData.get("Course_Id")?.toString();
 
-        if (!courseId) {
-            return Response.json({
-                success: false,
-                message: "Course Id is required",
-            }, {status: 400})
-        }
-
-        const Course_Name = formData.get("Course_Name")?.toString() || "";
-        const Description = formData.get("Description")?.toString() || "";
-        const Department = formData.get("Department")?.toString() || "";
-        const Price = formData.get("Price")?.toString() || "";
+        if (!isValidObjectId(courseId)) return badRequest("A valid Course Id is required");
 
         const {user, errorResponse} = await getVerifiedUser(req);
         if (errorResponse) return errorResponse;
 
-        const update = {
-            Course_Name,
-            Description,
-            Department,
-            Price,
-            Username: user._id,
-        };
+        const course = await CourseModel.findById(courseId).select("Username").lean();
+        if (!course || Array.isArray(course)) return notFound("Course not found");
+
+        // Previously missing: without this check any signed-in user could rewrite
+        // someone else's course and reassign its owner to themselves.
+        if (String(course.Username) !== user._id) {
+            return forbidden("You are not authorized to update this course");
+        }
+
+        // Only apply the fields actually supplied, so a partial form does not
+        // blank out the rest of the course.
+        const update: Record<string, string | number> = {};
+        for (const field of ["Course_Name", "Description", "Department"] as const) {
+            const value = formData.get(field)?.toString().trim();
+            if (value) update[field] = value;
+        }
+
+        const rawPrice = formData.get("Price")?.toString();
+        if (rawPrice !== undefined && rawPrice !== "") {
+            const price = parsePrice(rawPrice);
+            if (price === null) return badRequest("Price must be a positive number");
+            update.Price = price;
+        }
+
+        if (Object.keys(update).length === 0) return badRequest("Nothing to update");
 
         const updatedCourse = await CourseModel.findByIdAndUpdate(courseId, update, {
             new: true,
-        });
+            runValidators: true,
+        }).lean();
 
-        if (!updatedCourse) {
-            return Response.json({
-                success: false,
-                message: "Course not found",
-            }, {status: 404})
-        }
-
-        return Response.json({
-            success: true,
-            message: "Course updated successfully",
-            course: updatedCourse
-        }, {status: 200});
+        return ok("Course updated successfully", {course: updatedCourse});
     } catch (error) {
-        console.error("Error at updating Course", error);
-        return Response.json({
-            success: false,
-            message: "Error at updating Course",
-        }, {status: 500});
+        return serverError("course:PUT", error);
     }
 }
 
 export async function PATCH(req: Request) {
-    await dbConnect();
-
     try {
+        await dbConnect();
+
         const formData = await req.formData();
 
         const courseId = formData.get("Course_Id")?.toString();
-        const videoDesc = formData.get("Video_Description")?.toString();
+        const videoDesc = formData.get("Video_Description")?.toString().trim();
         const file = formData.get("Video") as File | null;
 
-        if (!courseId || !videoDesc || !file) {
-            return Response.json({
-                success: false,
-                message: "Course Id , video file and description are required",
-            }, {status: 400});
-        }
-
-        const course = await CourseModel.findById(courseId);
-
-        if (!course) {
-            return Response.json({
-                success: false,
-                message: "Course not found",
-            }, {status: 404})
+        if (!isValidObjectId(courseId) || !videoDesc || !file) {
+            return badRequest("Course Id, video file and description are required");
         }
 
         const {user, errorResponse} = await getVerifiedUser(req);
         if (errorResponse) return errorResponse;
 
-        if (course.Username.toString() !== user._id) {
-            return Response.json({
-                success: false,
-                message: "You are not authorized to update this course",
-            }, {status: 403});
+        const course = await CourseModel.findById(courseId).select("Username").lean();
+        if (!course || Array.isArray(course)) return notFound("Course not found");
+
+        if (String(course.Username) !== user._id) {
+            return forbidden("You are not authorized to update this course");
         }
 
-        // Limit video size to 30MB
-        if (file.size > 30 * 1024 * 1024) {
-            return Response.json({
-                success: false,
-                message: "Video file size must be 30MB or less.",
-            }, { status: 400 });
+        if (file.size > MAX_VIDEO_BYTES) {
+            return badRequest("Video file size must be 30MB or less.");
         }
 
         const bytes = await file.arrayBuffer();
-        const buffer = Buffer.from(bytes);
-    const result = await uploadBufferToCloudinary(buffer, "video", "courses") as { secure_url: string };
-
-        const videoData = {
-            Video_Url: result.secure_url,
-            Description: videoDesc,
-        };
+        const result = await uploadBufferToCloudinary(
+            Buffer.from(bytes), "video", "courses"
+        ) as {secure_url: string};
 
         const updated = await CourseModel.findByIdAndUpdate(
             courseId,
-            {$push: {Video: videoData}},
+            {$push: {Video: {Video_Url: result.secure_url, Description: videoDesc}}},
             {new: true}
-        );
+        ).lean();
 
-        return Response.json({
-            success: true,
-            message: "Video added to course",
-            course: updated,
-        }, {status: 200});
-
+        return ok("Video added to course", {course: updated});
     } catch (error) {
-        console.error("Error at adding a Video", error);
-        return Response.json({
-            success: false,
-            message: "Error at adding a Video",
-        }, {status: 500})
+        return serverError("course:PATCH", error);
     }
 }
 
 export async function DELETE(req: Request) {
-    await dbConnect();
-
     try {
+        await dbConnect();
+
         const formData = await req.formData();
         const courseId = formData.get("Course_Id")?.toString();
 
-        if (!courseId) {
-            return Response.json({
-                success: false,
-                message: "Course Id is required",
-            }, {status: 400});
-        }
-
-        const course = await CourseModel.findById(courseId);
-
-        if (!course) {
-            return Response.json({
-                success: false,
-                message: "Course not found",
-            }, {status: 404})
-        }
+        if (!isValidObjectId(courseId)) return badRequest("A valid Course Id is required");
 
         const {user, errorResponse} = await getVerifiedUser(req);
         if (errorResponse) return errorResponse;
 
-        if (course.Username.toString() !== user._id) {
-            return Response.json({
-                success: false,
-                message: "You are not authorized to delete this course",
-            }, {status: 403});
+        const course = await CourseModel.findById(courseId).select("Username").lean();
+        if (!course || Array.isArray(course)) return notFound("Course not found");
+
+        if (String(course.Username) !== user._id) {
+            return forbidden("You are not authorized to delete this course");
         }
 
-        await UserModel.findByIdAndUpdate(
-            user._id,
-            {
-                $pull: {
-                    Upload_Course: courseId
-                }
-            }
-        );
-
+        // Detach the course from every user in one pass, then remove it.
         await UserModel.updateMany(
             {},
             {
                 $pull: {
-                    Buy_Course: {
-                        courseId: courseId,
-                    },
-                    Cart: courseId
+                    Upload_Course: courseId,
+                    Favourite: courseId,
+                    Cart: courseId,
+                    Buy_Course: {courseId},
+                    Watched_Course: {courseId},
+                    Certificate: {courseId},
                 },
             }
-        )
+        );
 
         await CourseModel.findByIdAndDelete(courseId);
 
-        return Response.json({
-            success: true,
-            message: "Course deleted successfully",
-        }, {status: 200});
+        return ok("Course deleted successfully");
     } catch (error) {
-        console.error("Error at deleting Course", error);
-        return Response.json({
-            success: false,
-            message: "Error at deleting Course",
-        }, {status: 500});
+        return serverError("course:DELETE", error);
     }
 }
 
-export async function GET() {
-    await dbConnect();
-
+export async function GET(req: Request) {
     try {
-        const course = await CourseModel.find()
-            .populate("Username", "Username")
-            .sort({ createdAt: -1 })
-            .limit(100);
+        await dbConnect();
 
-        if (!course || course.length === 0) {
-            return Response.json({
-                success: false,
-                message: "No courses found for this department",
-            }, {status: 404});
+        const {searchParams} = new URL(req.url);
+        const limit = Math.min(Math.max(Number(searchParams.get("limit")) || 60, 1), 100);
+        const page = Math.max(Number(searchParams.get("page")) || 1, 1);
+        const department = searchParams.get("department")?.trim();
+        const search = searchParams.get("q")?.trim();
+
+        const filter: Record<string, unknown> = {};
+        if (department && department !== "All") filter.Department = department;
+        if (search) {
+            // Escaped so a user-supplied "(" cannot throw an invalid-regex error.
+            const safe = search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+            filter.$or = [
+                {Course_Name: {$regex: safe, $options: "i"}},
+                {Description: {$regex: safe, $options: "i"}},
+            ];
         }
 
-        return Response.json({
-            success: true,
-            message: "Courses fetched successfully",
-            course
-        })
+        const [course, total] = await Promise.all([
+            CourseModel.find(filter)
+                .select(CARD_FIELDS)
+                .populate("Username", "Username")
+                .sort({createdAt: -1})
+                .skip((page - 1) * limit)
+                .limit(limit)
+                .lean(),
+            CourseModel.countDocuments(filter),
+        ]);
+
+        // An empty catalogue is a valid result, not an error.
+        return ok("Courses fetched successfully", {
+            course,
+            page,
+            limit,
+            total,
+            hasMore: page * limit < total,
+        });
     } catch (error) {
-        console.error("Error to fetching course by department", error);
-        return Response.json({
-            success: false,
-            message: "Server error while fetching courses",
-        }, {status: 500});
+        return serverError("course:GET", error);
     }
 }

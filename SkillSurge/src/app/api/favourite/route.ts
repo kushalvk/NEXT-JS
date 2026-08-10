@@ -1,142 +1,78 @@
 import dbConnect from "@/app/lib/dbConnect";
 import CourseModel from "@/models/Course";
-import {getVerifiedUser} from "@/utils/verifyRequest";
 import UserModel from "@/models/User";
+import {getVerifiedUser} from "@/utils/verifyRequest";
+import {badRequest, isValidObjectId, notFound, ok, readBody, serverError} from "@/utils/apiResponse";
 
 export async function PUT(req: Request) {
-    await dbConnect();
-
     try {
-        const {courseId} = await req.json();
+        await dbConnect();
 
-        if (!courseId) {
-            return Response.json({
-                success: false,
-                message: "Course Id is required",
-            }, {status: 400});
-        }
+        const {courseId} = await readBody(req);
 
-        const course = await CourseModel.findOne({_id: courseId});
+        if (!isValidObjectId(courseId)) return badRequest("A valid Course Id is required");
 
-        if (!course) {
-            return Response.json({
-                success: false,
-                message: "Course not Found",
-            }, {status: 404});
-        }
-
+        // Authorize first: the previous order let anonymous callers probe which
+        // course ids exist before ever being asked for a token.
         const {user, errorResponse} = await getVerifiedUser(req);
         if (errorResponse) return errorResponse;
 
-        if (!user) {
-            return Response.json({
-                success: false,
-                message: "User Not Found",
-            }, {status: 404});
-        }
+        const exists = await CourseModel.exists({_id: courseId});
+        if (!exists) return notFound("Course not Found");
 
+        // $addToSet, not $push - favouriting twice used to add a duplicate.
         const updatedUser = await UserModel.findByIdAndUpdate(
             user._id,
-            {$push: {Favourite: courseId}},
-            {new: true}
-        );
+            {$addToSet: {Favourite: courseId}},
+            {new: true, projection: "-Password"}
+        ).lean();
 
-        return Response.json({
-            success: true,
-            message: "Course added to favourite Successfully",
-            User: updatedUser,
-        }, {status: 200});
+        return ok("Course added to favourite Successfully", {User: updatedUser});
     } catch (error) {
-        console.error("Error at add to favourite", error);
-        return Response.json({
-            success: false,
-            message: "Error at add to favourite",
-        }, {status: 500});
+        return serverError("favourite:PUT", error);
     }
 }
 
 export async function DELETE(req: Request) {
-    await dbConnect();
-
     try {
-        const {courseId} = await req.json();
+        await dbConnect();
 
-        if (!courseId) {
-            return Response.json({
-                success: false,
-                message: "Course Id is required",
-            }, {status: 400});
-        }
+        const {courseId} = await readBody(req);
 
-        const course = await CourseModel.findOne({_id: courseId});
-
-        if (!course) {
-            return Response.json({
-                success: false,
-                message: "Course not Found",
-            }, {status: 404});
-        }
+        if (!isValidObjectId(courseId)) return badRequest("A valid Course Id is required");
 
         const {user, errorResponse} = await getVerifiedUser(req);
         if (errorResponse) return errorResponse;
-
-        if (!user) {
-            return Response.json({
-                success: false,
-                message: "User Not Found",
-            }, {status: 404});
-        }
 
         const updatedUser = await UserModel.findByIdAndUpdate(
             user._id,
             {$pull: {Favourite: courseId}},
-            {new: true}
-        );
+            {new: true, projection: "-Password"}
+        ).lean();
 
-        return Response.json({
-            success: true,
-            message: "Course remove from favourite Successfully",
-            User: updatedUser,
-        }, {status: 200});
+        return ok("Course remove from favourite Successfully", {User: updatedUser});
     } catch (error) {
-        console.error("Error at removing from favourite", error);
-        return Response.json({
-            success: false,
-            message: "Error at removing from favourite",
-        }, {status: 500});
+        return serverError("favourite:DELETE", error);
     }
 }
 
 export async function GET(req: Request) {
-    await dbConnect();
-
     try {
+        await dbConnect();
+
         const {user, errorResponse} = await getVerifiedUser(req);
         if (errorResponse) return errorResponse;
 
         const updatedUser = await UserModel.findById(user._id)
+            .select("Favourite")
             .populate({
                 path: "Favourite",
-                select: "Image Course_Name Description Price"
-            });
+                select: "Image Course_Name Description Department Price Video.Description",
+            })
+            .lean();
 
-        if (!updatedUser) {
-            return Response.json({
-                success: false,
-                message: "No Favourite found",
-            }, {status: 404});
-        }
-
-        return Response.json({
-            success: true,
-            message: "Favourite found Successfully",
-            User: updatedUser,
-        }, {status: 200});
+        return ok("Favourite found Successfully", {User: updatedUser});
     } catch (error) {
-        console.error("Error at getting course from favourite", error);
-        return Response.json({
-            success: false,
-            message: "Error at getting course from favourite",
-        }, {status: 500});
+        return serverError("favourite:GET", error);
     }
 }

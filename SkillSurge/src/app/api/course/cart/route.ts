@@ -1,155 +1,87 @@
 import dbConnect from "@/app/lib/dbConnect";
 import CourseModel from "@/models/Course";
-import {getVerifiedUser} from "@/utils/verifyRequest";
 import UserModel from "@/models/User";
+import {getVerifiedUser} from "@/utils/verifyRequest";
+import {badRequest, conflict, isValidObjectId, notFound, ok, readBody, serverError} from "@/utils/apiResponse";
 
 export async function POST(req: Request) {
-    await dbConnect();
-
     try {
-        const formData = await req.formData();
-        const courseId = formData.get("courseId")?.toString() || null;
+        await dbConnect();
 
-        if (!courseId) {
-            return Response.json({
-                success: false,
-                message: "Course Id is required",
-            }, {status: 400});
-        }
+        const {courseId} = await readBody(req);
 
-        const course = await CourseModel.findOne({_id: courseId});
-
-        if (!course) {
-            return Response.json({
-                success: false,
-                message: "Course not Found",
-            }, {status: 404});
-        }
+        if (!isValidObjectId(courseId)) return badRequest("A valid Course Id is required");
 
         const {user, errorResponse} = await getVerifiedUser(req);
         if (errorResponse) return errorResponse;
 
-        if (!user) {
-            return Response.json({
-                success: false,
-                message: "User Not Found",
-            }, {status: 404});
+        const exists = await CourseModel.exists({_id: courseId});
+        if (!exists) return notFound("Course not Found");
+
+        if (user.Buy_Course.some((entry) => entry.courseId === courseId)) {
+            return conflict("You already own this course");
         }
 
+        // $addToSet keeps the cart free of duplicates.
         const updatedUser = await UserModel.findByIdAndUpdate(
             user._id,
-            {$push: {Cart: courseId}},
-            {new: true}
-        );
+            {$addToSet: {Cart: courseId}},
+            {new: true, projection: "-Password"}
+        ).lean();
 
-        return Response.json({
-            success: true,
-            message: "Course added to cart Successfully",
-            User: updatedUser,
-        }, {status: 200});
+        return ok("Course added to cart Successfully", {User: updatedUser});
     } catch (error) {
-        console.error("Error at add to cart ", error);
-        return Response.json({
-            success: false,
-            message: "Error at add to cart ",
-        }, {status: 500});
+        return serverError("cart:POST", error);
     }
 }
 
 export async function DELETE(req: Request) {
-    await dbConnect();
-
     try {
-        const {courseId} = await req.json();
+        await dbConnect();
 
-        if (!courseId) {
-            return Response.json({
-                success: false,
-                message: "Course Id is required",
-            }, {status: 400});
-        }
+        const {courseId} = await readBody(req);
 
-        const course = await CourseModel.findById(courseId);
-
-        if (!course) {
-            return Response.json({
-                success: false,
-                message: "Course not Found",
-            }, {status: 404});
-        }
+        if (!isValidObjectId(courseId)) return badRequest("A valid Course Id is required");
 
         const {user, errorResponse} = await getVerifiedUser(req);
         if (errorResponse) return errorResponse;
 
-        if (!user) {
-            return Response.json({
-                success: false,
-                message: "User Not Found",
-            }, {status: 404});
-        }
-
+        // The cart now comes from the database rather than a stale token claim.
         if (!user.Cart.includes(courseId)) {
-            return Response.json({
-                success: false,
-                message: "Course doesn't exist in your cart.",
-            }, {status: 404});
+            return notFound("Course doesn't exist in your cart.");
         }
 
-        const upadtedUser = await UserModel.findByIdAndUpdate(
+        const updatedUser = await UserModel.findByIdAndUpdate(
             user._id,
             {$pull: {Cart: courseId}},
-            {new: true}
-        )
+            {new: true, projection: "-Password"}
+        ).lean();
 
-        return Response.json({
-            success: true,
-            message: "Course remove from cart Successfully",
-            User: upadtedUser
-        }, {status: 200});
+        return ok("Course remove from cart Successfully", {User: updatedUser});
     } catch (error) {
-        console.error("Error at remove course from cart ", error);
-        return Response.json({
-            success: false,
-            message: "Error at remove course from cart",
-        }, {status: 500});
+        return serverError("cart:DELETE", error);
     }
 }
 
 export async function GET(req: Request) {
-    await dbConnect();
-
     try {
+        await dbConnect();
+
         const {user, errorResponse} = await getVerifiedUser(req);
         if (errorResponse) return errorResponse;
 
-        if (!user) {
-            return Response.json({
-                success: false,
-                message: "User Not Found",
-            }, {status: 404});
-        }
-
+        // An empty cart is a successful 200 with an empty list; it used to
+        // answer {success: true} with a 400, which the client read as an error.
         if (user.Cart.length === 0) {
-            return Response.json({
-                success: true,
-                message: "Your cart is empty",
-            }, {status: 400});
+            return ok("Your cart is empty", {Cart: []});
         }
 
-        const latestUserCart = await UserModel.findById(user._id);
+        const Cart = await CourseModel.find({_id: {$in: user.Cart}})
+            .select("Image Course_Name Description Department Price")
+            .lean();
 
-        const Cart = await CourseModel.find({_id: latestUserCart.Cart});
-
-        return Response.json({
-            success: true,
-            message: "Cart fetch successfully",
-            Cart
-        }, {status: 200});
+        return ok("Cart fetch successfully", {Cart});
     } catch (error) {
-        console.error("Error at fetching Cart ", error)
-        return Response.json({
-            success: false,
-            message: "Error at fetching Cart",
-        }, {status: 500});
+        return serverError("cart:GET", error);
     }
 }

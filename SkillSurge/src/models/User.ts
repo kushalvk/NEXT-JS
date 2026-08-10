@@ -3,6 +3,8 @@ import mongoose, {Document, Schema, Types} from "mongoose";
 export interface BuyCourse extends Document {
     courseId: mongoose.Types.ObjectId;
     buyDate: Date;
+    /** Razorpay order this purchase was granted against, so it cannot be replayed. */
+    orderId?: string;
 }
 
 const Buy_Course_Schema = new Schema<BuyCourse>({
@@ -14,6 +16,10 @@ const Buy_Course_Schema = new Schema<BuyCourse>({
     buyDate: {
         type: Date,
         default: Date.now,
+    },
+    orderId: {
+        type: String,
+        default: null,
     },
 }, {_id: false});
 
@@ -119,6 +125,13 @@ const UserSchema: Schema<User> = new Schema({
         required: false
     }
 }, { timestamps: true });
+
+/**
+ * Username and Email already get unique indexes from the field definitions.
+ * These cover the membership lookups used by the purchase and progress checks.
+ */
+UserSchema.index({"Buy_Course.courseId": 1});
+UserSchema.index({"Watched_Course.courseId": 1});
 
 const UserModel = mongoose.models.users || mongoose.model<User>('users', UserSchema);
 

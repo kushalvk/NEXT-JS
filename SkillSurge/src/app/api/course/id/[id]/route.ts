@@ -1,43 +1,28 @@
 import dbConnect from "@/app/lib/dbConnect";
 import CourseModel from "@/models/Course";
-import { NextRequest } from "next/server";
+import {NextRequest} from "next/server";
+import {badRequest, isValidObjectId, notFound, ok, serverError} from "@/utils/apiResponse";
 
 export async function GET(
-  req: NextRequest,
-  context: { params: Promise<{ id: string }> }
+    req: NextRequest,
+    context: { params: Promise<{ id: string }> }
 ) {
-    await dbConnect();
-
     try {
+        await dbConnect();
+
         const {id} = await context.params;
 
-        if (!id) {
-            return Response.json({
-                success: false,
-                message: "Department required",
-            }, {status: 400});
-        }
+        // Guards the CastError a malformed id used to turn into a 500.
+        if (!isValidObjectId(id)) return badRequest("A valid course id is required");
 
         const course = await CourseModel.findById(id)
-            .populate("Username", "Username");
+            .populate("Username", "Username")
+            .lean();
 
-        if (!course) {
-            return Response.json({
-                success: false,
-                message: "No courses found for this id",
-            }, {status: 404});
-        }
+        if (!course || Array.isArray(course)) return notFound("No courses found for this id");
 
-        return Response.json({
-            success: true,
-            message: "Courses fetched successfully",
-            course
-        })
+        return ok("Courses fetched successfully", {course});
     } catch (error) {
-        console.error("Error to fetching course by department", error);
-        return Response.json({
-            success: false,
-            message: "Server error while fetching courses",
-        }, {status: 500});
+        return serverError("course:byId", error);
     }
 }

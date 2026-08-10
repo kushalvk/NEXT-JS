@@ -1,29 +1,29 @@
 import dbConnect from "@/app/lib/dbConnect";
 import CourseModel from "@/models/Course";
+import {getVerifiedUser} from "@/utils/verifyRequest";
+import {forbidden, ok, serverError} from "@/utils/apiResponse";
+import {isAdmin} from "@/utils/roles";
 
-export async function GET() {
-    await dbConnect();
-
+export async function GET(req: Request) {
     try {
-        const course = await CourseModel.find({});
+        await dbConnect();
 
-        if (!course) {
-            return Response.json({
-                success: false,
-                message: "Course not found",
-            }, {status: 404});
+        // This endpoint previously had no authentication at all.
+        const {user, errorResponse} = await getVerifiedUser(req);
+        if (errorResponse) return errorResponse;
+
+        if (!isAdmin(user)) {
+            return forbidden("You are not authorized to list all courses");
         }
 
-        return Response.json({
-            success: true,
-            message: "All Course found",
-            course
-        }, {status: 200});
+        const course = await CourseModel.find({})
+            .select("Image Course_Name Department Price Username createdAt Video.Description")
+            .populate("Username", "Username")
+            .sort({createdAt: -1})
+            .lean();
+
+        return ok("All Course found", {course, total: course.length});
     } catch (error) {
-        console.error("Error at getting Course", error);
-        return Response.json({
-            success: false,
-            message: "Error at getting Course",
-        }, {status: 500});
+        return serverError("admin:course", error);
     }
 }

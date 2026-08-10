@@ -1,42 +1,31 @@
 import dbConnect from "@/app/lib/dbConnect";
 import CourseModel from "@/models/Course";
-import { NextRequest } from "next/server";
+import {NextRequest} from "next/server";
+import {badRequest, ok, serverError} from "@/utils/apiResponse";
 
 export async function GET(
-  req: NextRequest,
-  context: { params: Promise<{ course_name: string }> }
+    req: NextRequest,
+    context: { params: Promise<{ course_name: string }> }
 ) {
-    await dbConnect();
-
     try {
+        await dbConnect();
+
         const {course_name} = await context.params;
 
-        if (!course_name) {
-            return Response.json({
-                success: false,
-                message: "Course Name is required",
-            }, {status: 400});
-        }
+        if (!course_name) return badRequest("Course Name is required");
 
-        const course = await CourseModel.find({Course_Name: course_name});
+        // Case-insensitive exact match, with the input escaped so regex
+        // metacharacters in a title cannot break the query.
+        const safe = course_name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-        if (!course || course.length === 0) {
-            return Response.json({
-                success: false,
-                message: "No courses found for this name",
-            }, {status: 404});
-        }
+        const course = await CourseModel.find({Course_Name: {$regex: `^${safe}$`, $options: "i"}})
+            .select("Image Course_Name Description Department Price Username createdAt Video.Description")
+            .populate("Username", "Username")
+            .limit(20)
+            .lean();
 
-        return Response.json({
-            success: true,
-            message: "Courses fetched successfully",
-            course
-        })
+        return ok("Courses fetched successfully", {course});
     } catch (error) {
-        console.error("Error at fetch Course ", error);
-        return Response.json({
-            success: false,
-            message: "Server Error at fetch Course",
-        }, {status: 500});
+        return serverError("course:byName", error);
     }
 }

@@ -1,154 +1,106 @@
 import dbConnect from "@/app/lib/dbConnect";
 import CourseModel from "@/models/Course";
+import UserModel from "@/models/User";
 import {getVerifiedUser} from "@/utils/verifyRequest";
-import UserModel, { BuyCourse } from "@/models/User";
+import {
+    badRequest,
+    conflict,
+    fail,
+    isValidObjectId,
+    notFound,
+    ok,
+    readBody,
+    serverError,
+} from "@/utils/apiResponse";
 
+/**
+ * Enrols the user in a FREE course.
+ *
+ * This handler used to grant any course, at any price, with no payment - the
+ * "Buy now" button was effectively a giveaway. Paid courses now have to go
+ * through /api/checkout, which verifies the Razorpay signature.
+ */
 export async function PUT(req: Request) {
-    await dbConnect();
-
     try {
-        const formData = await req.formData();
-        const courseId = formData.get("courseId")?.toString() || null;
+        await dbConnect();
 
-        if (!courseId) {
-            return Response.json({
-                success: false,
-                message: "Course Id is required",
-            }, {status: 400});
-        }
+        const {courseId} = await readBody(req);
 
-        const course = await CourseModel.findById(courseId);
-
-        if (!course) {
-            return Response.json({
-                success: false,
-                message: "Course not Found",
-            }, {status: 404});
-        }
+        if (!isValidObjectId(courseId)) return badRequest("A valid Course Id is required");
 
         const {user, errorResponse} = await getVerifiedUser(req);
         if (errorResponse) return errorResponse;
 
-        if (user?.Buy_Course?.some((item: BuyCourse) => item.courseId.toString() === courseId)) {
-            return Response.json({
-                success: false,
-                message: "You have already bought this course.",
-            }, {status: 409});
+        const course = await CourseModel.findById(courseId).select("Price").lean();
+        if (!course || Array.isArray(course)) return notFound("Course not Found");
+
+        if ((course.Price || 0) > 0) {
+            return fail("This course must be purchased through checkout", 402);
+        }
+
+        if (user.Buy_Course.some((item) => item.courseId === courseId)) {
+            return conflict("You have already bought this course.");
         }
 
         const updatedUser = await UserModel.findOneAndUpdate(
             {_id: user._id},
             {
-                $push: {
-                    Buy_Course: {
-                        courseId: courseId,
-                        buyDate: new Date(),
-                    },
-                },
-                $pull: {
-                    Cart: courseId,
-                },
+                $push: {Buy_Course: {courseId, buyDate: new Date()}},
+                $pull: {Cart: courseId},
             },
-            {new: true}
-        );
+            {new: true, projection: "-Password"}
+        ).lean();
 
-        return Response.json({
-            success: true,
-            message: "You successfully Buy the course",
-            User: updatedUser,
-        }, {status: 200});
+        return ok("You are enrolled in this course", {User: updatedUser});
     } catch (error) {
-        console.error("Error at Buy a Course ", error);
-        return Response.json({
-            success: false,
-            message: "Error at Buy a Course",
-        }, {status: 500});
+        return serverError("course:buy:PUT", error);
     }
 }
 
 export async function DELETE(req: Request) {
-    await dbConnect();
-
     try {
-        const formData = await req.formData();
-        const courseId = formData.get("courseId")?.toString() || null;
+        await dbConnect();
 
-        if (!courseId) {
-            return Response.json({
-                success: false,
-                message: "Course Id is required",
-            }, {status: 400});
-        }
+        const {courseId} = await readBody(req);
 
-        const course = await CourseModel.findOne({_id: courseId});
-
-        if (!course) {
-            return Response.json({
-                success: false,
-                message: "Course not Found",
-            }, {status: 404});
-        }
+        if (!isValidObjectId(courseId)) return badRequest("A valid Course Id is required");
 
         const {user, errorResponse} = await getVerifiedUser(req);
         if (errorResponse) return errorResponse;
 
-        if (!user?.Buy_Course?.some((item: BuyCourse) => item.courseId.toString() === courseId)) {
-            return Response.json({
-                success: false,
-                message: "You haven't bought this course.",
-            }, {status: 409});
+        if (!user.Buy_Course.some((item) => item.courseId === courseId)) {
+            return conflict("You haven't bought this course.");
         }
 
         const updatedUser = await UserModel.findOneAndUpdate(
             {_id: user._id},
-            {
-                $pull: {
-                    Buy_Course: {
-                        courseId: courseId
-                    }
-                }
-            },
-            {new: true}
-        );
+            {$pull: {Buy_Course: {courseId}}},
+            {new: true, projection: "-Password"}
+        ).lean();
 
-        return Response.json({
-            success: true,
-            message: "Course removed from your purchased list",
-            User: updatedUser,
-        }, {status: 200});
+        return ok("Course removed from your purchased list", {User: updatedUser});
     } catch (error) {
-        console.error("Error at deleting course from users ", error);
-        return Response.json({
-            success: false,
-            message: "Error at deleting course from users ",
-        }, {status: 500});
+        return serverError("course:buy:DELETE", error);
     }
 }
 
 export async function GET(req: Request) {
-    await dbConnect();
-
     try {
+        await dbConnect();
+
         const {user, errorResponse} = await getVerifiedUser(req);
         if (errorResponse) return errorResponse;
 
         const modifiedUser = await UserModel.findById(user._id)
+            .select("Buy_Course Watched_Course")
             .populate({
                 path: "Buy_Course.courseId",
-                select: "Image Course_Name Description Video"
+                select: "Image Course_Name Description Video.Description",
             })
             .lean();
 
-        return Response.json({
-            success: true,
-            message: "Buy Course course fetch successfully",
-            User: modifiedUser,
-        }, {status: 200});
+        return ok("Buy Course course fetch successfully", {User: modifiedUser});
     } catch (error) {
-        console.error("Error at getting course from users ", error);
-        return Response.json({
-            success: false,
-            message: "Error at getting course from users ",
-        }, {status: 500});
+        return serverError("course:buy:GET", error);
     }
 }

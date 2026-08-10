@@ -68,6 +68,18 @@ const CourseSchema = new Schema<Course>(
     { timestamps: true }
 );
 
+/**
+ * Indexes. Without these every catalogue request is a full collection scan.
+ *  - createdAt: the default catalogue sort.
+ *  - Department + createdAt: the category listings, sorted.
+ *  - Username: "courses I uploaded", and the ownership checks.
+ *  - text: name/description search.
+ */
+CourseSchema.index({createdAt: -1});
+CourseSchema.index({Department: 1, createdAt: -1});
+CourseSchema.index({Username: 1});
+CourseSchema.index({Course_Name: 'text', Description: 'text'}, {weights: {Course_Name: 5, Description: 1}});
+
 const CourseModel: Model<Course> =
     mongoose.models.courses || mongoose.model<Course>('courses', CourseSchema);
 

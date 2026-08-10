@@ -95,6 +95,10 @@ export const fetchCartCourse = async () => {
 
 interface CheckoutCourseData {
     courseIds: string[];
+    /** Razorpay proof of payment - the API verifies the signature server-side. */
+    razorpay_order_id: string;
+    razorpay_payment_id: string;
+    razorpay_signature: string;
 }
 
 export const checkoutCourse = async (data: CheckoutCourseData): Promise<UserResponse | undefined> => {

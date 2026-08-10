@@ -1,54 +1,54 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import Link from 'next/link';
-import { useParams, useRouter } from 'next/navigation';
-import { Button } from '@/components/ui/button';
-import { FaHeart, FaPlayCircle } from 'react-icons/fa';
-import { loggedUser, loggedUserResponse } from '@/services/AuthService';
-import { User } from '@/models/User';
-import { CourseCard, CourseResponse, UserResponse } from '@/utils/Responses';
+import Image from 'next/image';
+import {useParams, useRouter} from 'next/navigation';
+import toast from 'react-hot-toast';
+import {Types} from 'mongoose';
+import {FaHeart, FaRegHeart} from 'react-icons/fa';
 import {
+    HiCheckCircle,
+    HiOutlineArrowLeft,
+    HiOutlineLockClosed,
+    HiOutlinePlay,
+    HiOutlinePlus,
+    HiOutlineShoppingCart,
+    HiOutlineUser,
+} from 'react-icons/hi';
+import {loggedUser, loggedUserResponse} from '@/services/AuthService';
+import {User} from '@/models/User';
+import {Video} from '@/models/Course';
+import {CourseCard, CourseResponse, UserResponse} from '@/utils/Responses';
+import {
+    RemoveFromCartCourse,
     addToCartCourse,
     buyCourse,
     getCourseById,
-    RemoveFromCartCourse,
 } from '@/services/CourseService';
+import {addToFavouriteService, removeFromFavouriteService} from '@/services/FavouriteService';
+import {completeVideoApi} from '@/services/WatchedService';
 import Loader from '@/components/Loader';
-import toast from 'react-hot-toast';
-import {
-    addToFavouriteService,
-    removeFromFavouriteService,
-} from '@/services/FavouriteService';
-import { completeVideoApi } from '@/services/WatchedService';
-import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog';
-import { useAuth } from '@/context/AuthContext';
-import Image from 'next/image';
-import { Video } from '@/models/Course';
-import { motion } from 'framer-motion';
-import { Types } from 'mongoose';
+import {Button} from '@/components/ui/button';
+import {formatPrice} from '@/components/CourseCard';
+import {startCoursePurchase} from '@/lib/razorpayCheckout';
+import {cn} from '@/lib/utils';
 
-interface BuyCourse {
+interface BuyCourseEntry {
     courseId: Types.ObjectId;
     buyDate: Date;
 }
 
-interface WatchedCourse {
+interface WatchedCourseEntry {
     courseId: Types.ObjectId;
     completedVideos: string[];
     completedAt?: Date | null;
 }
 
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-expect-error
+// @ts-expect-error the populated shape differs from the mongoose document
 interface UserType extends User {
-    Buy_Course?: BuyCourse[];
-    Watched_Course?: WatchedCourse[];
+    Buy_Course?: BuyCourseEntry[];
+    Watched_Course?: WatchedCourseEntry[];
     Favourite?: Types.ObjectId[];
     Cart?: Types.ObjectId[];
     Upload_Course?: Types.ObjectId[];
@@ -57,7 +57,6 @@ interface UserType extends User {
 const ViewCoursePage: React.FC = () => {
     const params = useParams();
     const router = useRouter();
-    const { logout } = useAuth();
 
     const id = Array.isArray(params.id) ? params.id[0] : (params.id as string) || '';
 
@@ -67,14 +66,15 @@ const ViewCoursePage: React.FC = () => {
     const [isPurchased, setIsPurchased] = useState(false);
     const [isInCart, setIsInCart] = useState(false);
     const [isUploadedByUser, setIsUploadedByUser] = useState(false);
-    const [refetchUser, setRefetchUser] = useState(false);
-    const [savingProgress, setSavingProgress] = useState(false);
-    const [showLoginDialog, setShowLoginDialog] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
+    const [isBuying, setIsBuying] = useState(false);
+    const [activeIndex, setActiveIndex] = useState(0);
 
-    // Perfectly typed ref
-    const videoRefs = useRef<{ [key: string]: HTMLVideoElement | null }>({});
+    const videoRef = useRef<HTMLVideoElement | null>(null);
+    /** Guards against firing the completion request repeatedly during playback. */
+    const savingRef = useRef<Set<string>>(new Set());
 
-    const fetchUser = async () => {
+    const fetchUser = useCallback(async () => {
         try {
             const res = (await loggedUser()) as loggedUserResponse;
             if (res?.success && res.User) {
@@ -82,20 +82,15 @@ const ViewCoursePage: React.FC = () => {
                 setUserData(user);
 
                 const strId = id.toString();
-
-                setIsPurchased(
-                    user.Buy_Course?.some((c) => c.courseId.toString() === strId) ?? false
-                );
+                setIsPurchased(user.Buy_Course?.some((c) => c.courseId.toString() === strId) ?? false);
                 setLiked(user.Favourite?.some((fid) => fid.toString() === strId) ?? false);
                 setIsInCart(user.Cart?.some((cid) => cid.toString() === strId) ?? false);
-                setIsUploadedByUser(
-                    user.Upload_Course?.some((uid) => uid.toString() === strId) ?? false
-                );
+                setIsUploadedByUser(user.Upload_Course?.some((uid) => uid.toString() === strId) ?? false);
             }
         } catch (err) {
             console.error(err);
         }
-    };
+    }, [id]);
 
     useEffect(() => {
         if (!id) return;
@@ -109,412 +104,503 @@ const ViewCoursePage: React.FC = () => {
                 toast.error('Failed to load course');
             }
             await fetchUser();
+            setIsLoading(false);
         };
-        load();
-    }, [id]);
 
-    useEffect(() => {
-        if (refetchUser) {
-            fetchUser();
-            setRefetchUser(false);
-        }
-    }, [refetchUser]);
+        load();
+    }, [id, fetchUser]);
+
+    const watchedEntry = userData?.Watched_Course?.find((wc) => wc.courseId.toString() === id);
+    const completedVideos = useMemo(() => watchedEntry?.completedVideos || [], [watchedEntry]);
+
+    const lessons: Video[] = useMemo(() => course?.Video || [], [course]);
+    const activeLesson = lessons[activeIndex];
+
+    const completedCount = useMemo(
+        () => lessons.filter((lesson) => completedVideos.includes(lesson.Video_Url)).length,
+        [lessons, completedVideos]
+    );
+
+    const progress = lessons.length ? (completedCount / lessons.length) * 100 : 0;
+
+    const hasAccess = isPurchased || isUploadedByUser;
 
     const toggleFavorite = async () => {
         if (!userData) {
+            toast('Sign in to save favourites');
             router.push('/login');
-            toast('Please login first', { icon: 'Warning' });
             return;
         }
+
+        const wasLiked = liked;
+        setLiked(!wasLiked);
+
         try {
-            if (liked) {
-                await removeFromFavouriteService({ courseId: id });
-            } else {
-                await addToFavouriteService({ courseId: id });
-            }
-            setLiked(!liked);
-        } catch (err) {
-            console.log(err);
-            toast.error('Failed to update favorite');
+            const service = wasLiked ? removeFromFavouriteService : addToFavouriteService;
+            const response = await service({courseId: id});
+            if (!response?.success) throw new Error();
+        } catch {
+            setLiked(wasLiked);
         }
     };
 
-    const handleVideoProgress = async (videoUrl: string, videoEl: HTMLVideoElement) => {
-        if (!videoEl?.duration || videoEl.currentTime / videoEl.duration < 0.98) return;
+    /** Marks a lesson complete once it is 98% watched. */
+    const handleTimeUpdate = async () => {
+        const el = videoRef.current;
+        const videoUrl = activeLesson?.Video_Url;
 
-        const alreadyDone = userData?.Watched_Course?.some(
-            (wc) => wc.courseId.toString() === id && wc.completedVideos.includes(videoUrl)
-        );
-        if (alreadyDone) return;
+        if (!el || !videoUrl || !hasAccess) return;
+        if (!el.duration || el.currentTime / el.duration < 0.98) return;
+        if (completedVideos.includes(videoUrl) || savingRef.current.has(videoUrl)) return;
 
-        setSavingProgress(true);
+        savingRef.current.add(videoUrl);
+
         try {
             await completeVideoApi(id, videoUrl);
-            setRefetchUser(true);
+            await fetchUser();
         } catch (err) {
             console.error(err);
         } finally {
-            setSavingProgress(false);
+            savingRef.current.delete(videoUrl);
         }
     };
-
-    const playFullscreen = (videoUrl: string) => {
-        const vid = videoRefs.current[videoUrl];
-        if (vid && !document.fullscreenElement) {
-            vid.requestFullscreen().catch(() => {});
-        }
-    };
-
-    useEffect(() => {
-        const exitFs = () => {
-            if (!document.fullscreenElement) {
-                Object.values(videoRefs.current).forEach((v) => v?.pause());
-            }
-        };
-        document.addEventListener('fullscreenchange', exitFs);
-        return () => document.removeEventListener('fullscreenchange', exitFs);
-    }, []);
 
     const buyNow = async () => {
         if (!userData) return router.push('/login');
+
+        setIsBuying(true);
         try {
+            // Paid courses go through Razorpay; the server verifies the payment
+            // before granting access. Free courses enrol directly.
+            if ((course?.Price ?? 0) > 0) {
+                const result = await startCoursePurchase([id]);
+
+                if (result.success) {
+                    toast.success(result.message || 'Course purchased.');
+                    setIsPurchased(true);
+                    await fetchUser();
+                } else if (!result.dismissed) {
+                    toast.error(result.message || 'Checkout failed');
+                }
+                return;
+            }
+
             const fd = new FormData();
             fd.append('courseId', id);
             const res = (await buyCourse(fd)) as UserResponse;
+
             if (res?.success) {
-                toast.success('Course purchased!');
+                toast.success('You are enrolled in this course.');
                 setIsPurchased(true);
-                setShowLoginDialog(true);
+                await fetchUser();
             }
         } catch (err) {
             console.log(err);
             toast.error('Purchase failed');
+        } finally {
+            setIsBuying(false);
         }
     };
 
     const toggleCart = async () => {
         if (!userData) return router.push('/login');
+
+        const wasInCart = isInCart;
+        setIsInCart(!wasInCart);
+
         try {
-            if (isInCart) {
-                await RemoveFromCartCourse({ courseId: id });
+            if (wasInCart) {
+                const res = await RemoveFromCartCourse({courseId: id});
+                if (!res?.success) throw new Error();
                 toast.success('Removed from cart');
             } else {
                 const fd = new FormData();
                 fd.append('courseId', id);
-                await addToCartCourse(fd);
+                const res = await addToCartCourse(fd);
+                if (!res?.success) throw new Error();
                 toast.success('Added to cart');
             }
-            setIsInCart(!isInCart);
-        } catch (err) {
-            console.log(err);
-            toast.error('Cart update failed');
+        } catch {
+            setIsInCart(wasInCart);
         }
     };
 
-    const watchedEntry = userData?.Watched_Course?.find(
-        (wc) => wc.courseId.toString() === id
-    );
-    const completedVideos = watchedEntry?.completedVideos || [];
-
-    const progress =
-        course?.Video?.length
-            ? (completedVideos.filter((url) =>
-                    course.Video.some((v) => v.Video_Url === url)
-                ).length /
-                course.Video.length) *
-            100
-            : 0;
-
-    if (!course) {
+    if (isLoading) {
         return (
-            <div className="flex h-screen items-center justify-center bg-gradient-to-br from-indigo-950 to-purple-950">
-                <Loader />
+            <div className="container-page page-shell">
+                <Loader fullPage label="Loading course"/>
             </div>
         );
     }
 
-    if (savingProgress) {
+    if (!course) {
         return (
-            <div className="flex h-screen flex-col items-center justify-center gap-4 bg-gradient-to-br from-indigo-950 to-purple-950">
-                <Loader />
-                <p className="text-xl text-white">Saving your progress...</p>
+            <div className="container-page page-shell">
+                <div className="mx-auto max-w-md rounded-xl border border-dashed border-ink-300 bg-white px-6 py-14 text-center">
+                    <h1 className="text-lg font-bold">Course not found</h1>
+                    <p className="mt-1.5 text-sm text-ink-500">
+                        This course may have been removed.
+                    </p>
+                    <Button asChild className="mt-6">
+                        <Link href="/courses">Browse courses</Link>
+                    </Button>
+                </div>
             </div>
         );
     }
 
     return (
-        <>
-            {/* Animated Background */}
-            <div className="fixed inset-0 -z-10 overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-br from-indigo-950 via-purple-950 to-pink-950" />
-                <motion.div
-                    animate={{ scale: [1, 1.4, 1] }}
-                    transition={{ duration: 20, repeat: Infinity }}
-                    className="absolute top-20 left-0 w-96 h-96 bg-cyan-600/30 rounded-full blur-3xl"
-                />
-                <motion.div
-                    animate={{ scale: [1.2, 1, 1.2] }}
-                    transition={{ duration: 25, repeat: Infinity }}
-                    className="absolute bottom-20 right-0 w-80 h-80 bg-purple-600/30 rounded-full blur-3xl"
-                />
-            </div>
+        <div className="animate-fade-in">
 
-            <div className="min-h-screen pt-20 pb-32 px-4 font-sans">
-                <div className="max-w-7xl mx-auto">
-                    {/* Hero Section */}
-                    <motion.div
-                        initial={{ opacity: 0, y: 40 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="grid lg:grid-cols-2 gap-12 items-center mb-20"
+            {/* Course header */}
+            <header className="border-b border-ink-200 bg-white">
+                <div className="container-page py-8 sm:py-10">
+                    <Link
+                        href="/courses"
+                        className="mb-5 inline-flex items-center gap-1.5 text-sm font-medium text-ink-500 transition hover:text-ink-900"
                     >
-                        <div>
-                            <h1 className="text-5xl sm:text-6xl lg:text-8xl font-black bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 via-purple-400 to-pink-400 mb-6">
-                                {course.Course_Name}
-                            </h1>
-                            <p className="text-xl text-gray-300 mb-8 leading-relaxed">
+                        <HiOutlineArrowLeft className="h-4 w-4"/>
+                        All courses
+                    </Link>
+
+                    <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+                        <div className="min-w-0 max-w-3xl">
+                            {course.Department && <p className="eyebrow mb-2">{course.Department}</p>}
+                            <h1 className="text-3xl font-bold leading-tight sm:text-4xl">{course.Course_Name}</h1>
+                            <p className="mt-3 text-[0.9375rem] leading-relaxed text-ink-600">
                                 {course.Description}
                             </p>
 
-                            <div className="flex flex-wrap items-center gap-6">
-                                {/* Buy & Cart Buttons - Only show if not purchased & not uploaded by user */}
-                                {!isUploadedByUser && !isPurchased && (
-                                    <>
-                                        <Button
-                                            onClick={buyNow}
-                                            size="lg"
-                                            className="relative overflow-hidden bg-gradient-to-r from-pink-600 to-red-600 hover:from-pink-700 hover:to-red-700 text-white font-bold text-lg px-12 py-8 rounded-3xl shadow-2xl transform hover:scale-105 transition-all duration-300"
-                                        >
-                                            <span className="relative z-10">Buy Now ₹{course.Price}</span>
-                                            <div
-                                                className="absolute inset-0 bg-white/20 translate-y-full transition-transform duration-300 group-hover:translate-y-0"/>
-                                        </Button>
-
-                                        <Button
-                                            onClick={toggleCart}
-                                            size="lg"
-                                            variant="outline"
-                                            className="group relative overflow-hidden border-2 border-white/40 hover:border-white/60 backdrop-blur-xl bg-white/10 hover:bg-white/20 text-white font-bold text-lg px-10 py-8 rounded-3xl shadow-xl transition-all duration-300 hover:scale-105"
-                                        >
-        <span className="relative z-10">
-          {isInCart ? 'Remove from Cart' : 'Add to Cart'}
-        </span>
-                                            <div
-                                                className="absolute inset-0 bg-gradient-to-r from-cyan-500/20 to-purple-500/20 translate-x-full transition-transform duration-500 group-hover:translate-x-0"/>
-                                        </Button>
-                                    </>
+                            <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-ink-500">
+                                <span className="inline-flex items-center gap-1.5">
+                                    <HiOutlineUser className="h-4 w-4"/>
+                                    {course.Username?.Username || 'Unknown instructor'}
+                                </span>
+                                <span className="inline-flex items-center gap-1.5">
+                                    <HiOutlinePlay className="h-4 w-4"/>
+                                    {lessons.length} {lessons.length === 1 ? 'lesson' : 'lessons'}
+                                </span>
+                                {isUploadedByUser && (
+                                    <span className="chip bg-brand-50 text-brand-700">You own this course</span>
                                 )}
+                            </div>
+                        </div>
 
-                                {/* Back to Courses - Always visible */}
-                                <Button
-                                    asChild
-                                    size="lg"
-                                    variant="outline"
-                                    className="group relative overflow-hidden border-2 border-cyan-500/60 hover:border-cyan-400 backdrop-blur-xl bg-cyan-500/5 hover:bg-cyan-500/10 text-cyan-400 hover:text-cyan-300 font-bold text-lg px-10 py-8 rounded-3xl shadow-xl transition-all duration-300 hover:scale-105"
-                                >
-                                    <Link href="/courses" className="flex items-center gap-3">
-                                        <span>Back to Courses</span>
-                                        <motion.span
-                                            initial={{x: -10, opacity: 0}}
-                                            animate={{x: 0, opacity: 1}}
-                                            transition={{duration: 0.3}}
-                                            className="inline-block"
-                                        >
-                                            →
-                                        </motion.span>
+                        <div className="flex shrink-0 items-center gap-2">
+                            <Button
+                                variant="outline"
+                                onClick={toggleFavorite}
+                                aria-pressed={liked}
+                                aria-label={liked ? 'Remove from favourites' : 'Add to favourites'}
+                            >
+                                {liked
+                                    ? <FaHeart className="h-4 w-4 text-danger"/>
+                                    : <FaRegHeart className="h-4 w-4"/>}
+                                {liked ? 'Saved' : 'Save'}
+                            </Button>
+
+                            {isUploadedByUser && (
+                                <Button asChild>
+                                    <Link href={`/view/course/${id}/add-video`}>
+                                        <HiOutlinePlus className="h-4 w-4"/>
+                                        Add lesson
                                     </Link>
                                 </Button>
-                            </div>
-                        </div>
-
-                        <div className="relative group mt-21">
-                            <Image
-                                src={course.Image || '/placeholder.jpg'}
-                                alt={course.Course_Name}
-                                width={600}
-                                height={600}
-                                className="rounded-3xl shadow-2xl object-cover w-full"
-                            />
-                            <div
-                                className="absolute inset-0 rounded-3xl bg-gradient-to-t from-black/70 to-transparent"/>
-                            <motion.button
-                                whileTap={{scale: 0.8}}
-                                onClick={toggleFavorite}
-                                className="absolute top-6 right-6 p-4 bg-white/20 backdrop-blur-md rounded-full hover:bg-white/40"
-                            >
-                                <FaHeart className={`w-8 h-8 ${liked ? 'text-pink-500' : 'text-white/70'}`}/>
-                            </motion.button>
-                        </div>
-                    </motion.div>
-
-                    {/* Course Details */}
-                    <motion.div
-                        initial={{opacity: 0}}
-                        animate={{opacity: 1}}
-                        transition={{delay: 0.3}}
-                        className="bg-white/10 backdrop-blur-2xl rounded-3xl p-10 border border-white/20 mb-16"
-                    >
-                        <h2 className="text-4xl font-bold text-white mb-8">Course Details</h2>
-                        <div className="grid md:grid-cols-3 gap-6 text-white text-lg">
-                            <div><span className="text-cyan-400 font-semibold">Department:</span> {course.Department}
-                            </div>
-                            <div><span className="text-cyan-400 font-semibold">Price:</span> ₹{course.Price}</div>
-                            <div><span
-                                className="text-cyan-400 font-semibold">Instructor:</span> {course.Username?.Username || 'Unknown'}
-                            </div>
-                        </div>
-                    </motion.div>
-
-                    {/* Course Content */}
-                    {(isPurchased || isUploadedByUser) && (
-                        <>
-                            {!isUploadedByUser && (
-                                <motion.div
-                                    initial={{ opacity: 0, y: 20 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    transition={{ delay: 0.4 }}
-                                    className="mb-16"
-                                >
-                                    <h2 className="text-4xl font-bold text-white mb-8">Your Progress</h2>
-                                    <div className="bg-white/10 backdrop-blur-2xl rounded-3xl p-10 border border-white/20">
-                                        <div className="flex justify-between mb-4">
-                                            <span className="text-2xl text-white font-semibold">Completion</span>
-                                            <span className="text-3xl font-bold text-cyan-400">{Math.round(progress)}%</span>
-                                        </div>
-                                        <div className="w-full bg-white/20 rounded-full h-6 overflow-hidden">
-                                            <motion.div
-                                                initial={{ width: 0 }}
-                                                animate={{ width: `${progress}%` }}
-                                                transition={{ duration: 1.5, ease: 'easeOut' }}
-                                                className="h-full bg-gradient-to-r from cyan-500 to-purple-600 rounded-full shadow-lg"
-                                            />
-                                        </div>
-                                    </div>
-                                </motion.div>
                             )}
+                        </div>
+                    </div>
+                </div>
+            </header>
 
-                            <motion.div
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                transition={{ delay: 0.5 }}
-                            >
-                                <div className="flex justify-between items-center mb-10">
-                                    <h2 className="text-4xl font-bold text-white">Course Content</h2>
+            <div className="container-page page-shell">
+                <div className="grid gap-6 lg:grid-cols-3 lg:gap-8">
+
+                    {/* Main column. min-w-0 stops the video's intrinsic width from
+                        widening the grid track - grid items default to min-width:auto. */}
+                    <div className="min-w-0 space-y-6 lg:col-span-2">
+                        {hasAccess ? (
+                            lessons.length > 0 ? (
+                                <>
+                                    {/* Player */}
+                                    <div className="overflow-hidden rounded-xl border border-ink-200 bg-ink-950 shadow-e3">
+                                        <video
+                                            key={activeLesson?.Video_Url}
+                                            ref={videoRef}
+                                            controls
+                                            playsInline
+                                            preload="metadata"
+                                            poster={course.Image}
+                                            src={activeLesson?.Video_Url}
+                                            onTimeUpdate={handleTimeUpdate}
+                                            className="aspect-video w-full bg-black"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <p className="text-sm text-ink-500">
+                                            Lesson {activeIndex + 1} of {lessons.length}
+                                        </p>
+                                        <h2 className="mt-1 text-xl font-bold">{activeLesson?.Description}</h2>
+
+                                        {completedVideos.includes(activeLesson?.Video_Url || '') && (
+                                            <p className="mt-2 inline-flex items-center gap-1.5 text-sm font-medium text-success">
+                                                <HiCheckCircle className="h-4 w-4"/>
+                                                Completed
+                                            </p>
+                                        )}
+                                    </div>
+
+                                    <div className="flex flex-wrap gap-3 border-t border-ink-200 pt-5">
+                                        <Button
+                                            variant="outline"
+                                            disabled={activeIndex === 0}
+                                            onClick={() => setActiveIndex((i) => Math.max(0, i - 1))}
+                                        >
+                                            Previous lesson
+                                        </Button>
+                                        <Button
+                                            disabled={activeIndex >= lessons.length - 1}
+                                            onClick={() => setActiveIndex((i) => Math.min(lessons.length - 1, i + 1))}
+                                        >
+                                            Next lesson
+                                        </Button>
+                                    </div>
+                                </>
+                            ) : (
+                                <div className="rounded-xl border border-dashed border-ink-300 bg-white px-6 py-14 text-center">
+                                    <HiOutlinePlay className="mx-auto h-8 w-8 text-ink-400"/>
+                                    <h2 className="mt-3 text-lg font-bold">No lessons yet</h2>
+                                    <p className="mt-1.5 text-sm text-ink-500">
+                                        {isUploadedByUser
+                                            ? 'Upload your first lesson to get this course started.'
+                                            : 'The instructor has not published any lessons yet.'}
+                                    </p>
                                     {isUploadedByUser && (
-                                        <Button asChild size="lg" className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700">
-                                            <Link href={`/view/course/${id}/add-video`}>Add Video</Link>
+                                        <Button asChild className="mt-6">
+                                            <Link href={`/view/course/${id}/add-video`}>Add a lesson</Link>
                                         </Button>
                                     )}
                                 </div>
-
-                                {course.Video?.length === 0 ? (
-                                    <p className="text-center py-20 text-gray-400 text-xl">
-                                        {isUploadedByUser ? 'No videos yet. Upload one!' : 'Videos coming soon!'}
-                                    </p>
-                                ) : (
-                                    <div className="space-y-8">
-                                        {course.Video?.map((video: Video, i: number) => {
-                                            const videoUrl = video.Video_Url;
-                                            const isCompleted = completedVideos.includes(videoUrl);
-
-                                            return (
-                                                <motion.div
-                                                    key={videoUrl}
-                                                    initial={{ opacity: 0, x: -50 }}
-                                                    animate={{ opacity: 1, x: 0 }}
-                                                    transition={{ delay: i * 0.1 }}
-                                                    className="bg-white/10 backdrop-blur-2xl rounded-3xl overflow-hidden border border-white/20"
-                                                >
-                                                    <div className="grid lg:grid-cols-3 gap-8 p-8">
-                                                        <div className="lg:col-span-1">
-                                                            <div className="relative aspect-video rounded-2xl overflow-hidden shadow-2xl">
-                                                                <video
-                                                                    controls
-                                                                    className="w-full h-full object-cover"
-                                                                    src={videoUrl}
-                                                                    ref={(el) => {
-                                                                        if (el) videoRefs.current[videoUrl] = el;
-                                                                    }}
-                                                                    onTimeUpdate={() => {
-                                                                        const el = videoRefs.current[videoUrl];
-                                                                        if (el) handleVideoProgress(videoUrl, el);
-                                                                    }}
-                                                                    onPlay={() => playFullscreen(videoUrl)}
-                                                                />
-                                                                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent pointer-events-none" />
-                                                                <div className="absolute bottom-4 left-4 flex items-center gap-3">
-                                                                    <FaPlayCircle className="w-10 h-10 text-white/90" />
-                                                                    <span className="text-white font-semibold text-lg">Play</span>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                        <div className="lg:col-span-2 flex flex-col justify-center">
-                                                            <p className="text-gray-300 text-lg mb-6 leading-relaxed">
-                                                                {video.Description}
-                                                            </p>
-                                                            {!isUploadedByUser && (
-                                                                <span
-                                                                    className={`inline-block px-6 py-3 rounded-full font-bold text-sm ${
-                                                                        isCompleted
-                                                                            ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white'
-                                                                            : 'bg-white/20 text-gray-300'
-                                                                    }`}
-                                                                >
-                                  {isCompleted ? 'Completed' : 'Not Started'}
-                                </span>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                </motion.div>
-                                            );
-                                        })}
+                            )
+                        ) : (
+                            /* Locked preview */
+                            <div className="overflow-hidden rounded-xl border border-ink-200 bg-card shadow-e2">
+                                <div className="relative aspect-video w-full bg-ink-100">
+                                    {course.Image ? (
+                                        <Image
+                                            src={course.Image}
+                                            alt=""
+                                            fill
+                                            sizes="(min-width: 1024px) 66vw, 100vw"
+                                            className="object-cover"
+                                            priority
+                                        />
+                                    ) : null}
+                                    <div className="absolute inset-0 grid place-items-center bg-ink-950/55">
+                                        <div className="text-center text-white">
+                                            <HiOutlineLockClosed className="mx-auto h-8 w-8"/>
+                                            <p className="mt-2 text-sm font-semibold">
+                                                Buy this course to start watching
+                                            </p>
+                                        </div>
                                     </div>
-                                )}
-                            </motion.div>
-                        </>
-                    )}
+                                </div>
+                            </div>
+                        )}
 
-                    {/* Final CTA */}
-                    <motion.div
-                        initial={{ opacity: 0, y: 40 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.8 }}
-                        className="text-center mt-32"
-                    >
-                        <h2 className="text-5xl font-black text-white mb-6">Keep Learning!</h2>
-                        <p className="text-xl text-gray-300 mb-10">Explore more courses and level up.</p>
-                        <Button
-                            asChild
-                            size="lg"
-                            className="bg-gradient-to-r from-cyan-500 to-purple-600 hover:from-cyan-600 hover:to-purple-700 text-white font-bold px-16 py-8 rounded-2xl shadow-2xl hover:scale-105 transition-all"
-                        >
-                            <Link href="/courses">Browse All Courses</Link>
-                        </Button>
-                    </motion.div>
+                        {/* Curriculum */}
+                        <section>
+                            <div className="mb-4 flex items-end justify-between gap-4">
+                                <h2 className="text-lg font-bold">Course content</h2>
+                                <p className="text-sm text-ink-500">
+                                    {lessons.length} {lessons.length === 1 ? 'lesson' : 'lessons'}
+                                </p>
+                            </div>
+
+                            <ol className="overflow-hidden rounded-xl border border-ink-200 bg-card shadow-e2">
+                                {lessons.map((lesson, index) => {
+                                    const isCompleted = completedVideos.includes(lesson.Video_Url);
+                                    const isActive = hasAccess && index === activeIndex;
+
+                                    return (
+                                        <li key={lesson.Video_Url} className="border-b border-ink-200 last:border-0">
+                                            <button
+                                                type="button"
+                                                onClick={() => hasAccess && setActiveIndex(index)}
+                                                disabled={!hasAccess}
+                                                aria-current={isActive ? 'true' : undefined}
+                                                className={cn(
+                                                    'flex w-full items-center gap-3 px-4 py-3.5 text-left transition',
+                                                    hasAccess ? 'hover:bg-ink-50' : 'cursor-default',
+                                                    isActive && 'bg-brand-50'
+                                                )}
+                                            >
+                                                <span
+                                                    className={cn(
+                                                        'grid h-8 w-8 shrink-0 place-items-center rounded-full text-xs font-bold',
+                                                        isCompleted
+                                                            ? 'bg-success text-white'
+                                                            : isActive
+                                                                ? 'bg-brand-600 text-white'
+                                                                : 'bg-ink-100 text-ink-600'
+                                                    )}
+                                                >
+                                                    {isCompleted ? <HiCheckCircle className="h-4 w-4"/> : index + 1}
+                                                </span>
+
+                                                <span className="min-w-0 flex-1">
+                                                    <span
+                                                        className={cn(
+                                                            'block truncate text-sm',
+                                                            isActive ? 'font-semibold text-brand-800' : 'text-ink-800'
+                                                        )}
+                                                    >
+                                                        {lesson.Description}
+                                                    </span>
+                                                </span>
+
+                                                {hasAccess ? (
+                                                    <HiOutlinePlay className="h-4 w-4 shrink-0 text-ink-400"/>
+                                                ) : (
+                                                    <HiOutlineLockClosed className="h-4 w-4 shrink-0 text-ink-400"/>
+                                                )}
+                                            </button>
+                                        </li>
+                                    );
+                                })}
+
+                                {lessons.length === 0 && (
+                                    <li className="px-4 py-8 text-center text-sm text-ink-500">
+                                        No lessons published yet.
+                                    </li>
+                                )}
+                            </ol>
+                        </section>
+                    </div>
+
+                    {/* Sidebar */}
+                    <aside className="min-w-0 lg:col-span-1">
+                        <div className="sticky top-[calc(var(--nav-h)+1.5rem)] space-y-4">
+
+                            {hasAccess && !isUploadedByUser && (
+                                <div className="surface-card p-5">
+                                    <h2 className="text-base font-bold">Your progress</h2>
+                                    <div className="mt-3 flex items-baseline justify-between">
+                                        <span className="text-sm text-ink-500">
+                                            {completedCount} of {lessons.length} lessons
+                                        </span>
+                                        <span className="text-2xl font-bold">{Math.round(progress)}%</span>
+                                    </div>
+                                    <div
+                                        className="mt-2 h-2 overflow-hidden rounded-full bg-ink-200"
+                                        role="progressbar"
+                                        aria-valuenow={Math.round(progress)}
+                                        aria-valuemin={0}
+                                        aria-valuemax={100}
+                                        aria-label="Course progress"
+                                    >
+                                        <div
+                                            className={cn(
+                                                'h-full rounded-full transition-all duration-500',
+                                                progress >= 100 ? 'bg-success' : 'bg-brand-600'
+                                            )}
+                                            style={{width: `${progress}%`}}
+                                        />
+                                    </div>
+                                    {progress >= 100 && (
+                                        <p className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-success">
+                                            <HiCheckCircle className="h-4 w-4"/>
+                                            You finished this course
+                                        </p>
+                                    )}
+                                </div>
+                            )}
+
+                            {!hasAccess && (
+                                <div className="surface-card overflow-hidden">
+                                    {course.Image && (
+                                        <div className="relative aspect-video w-full bg-ink-100">
+                                            <Image
+                                                src={course.Image}
+                                                alt=""
+                                                fill
+                                                sizes="(min-width: 1024px) 33vw, 100vw"
+                                                className="object-cover"
+                                            />
+                                        </div>
+                                    )}
+
+                                    <div className="p-5">
+                                        <p className="text-3xl font-bold">{formatPrice(course.Price)}</p>
+                                        <p className="mt-1 text-sm text-ink-500">One payment, lifetime access.</p>
+
+                                        <div className="mt-5 space-y-2">
+                                            <Button
+                                                size="lg"
+                                                className="w-full"
+                                                onClick={buyNow}
+                                                disabled={isBuying}
+                                            >
+                                                {isBuying ? 'Processing...' : 'Buy now'}
+                                            </Button>
+                                            <Button
+                                                variant="outline"
+                                                size="lg"
+                                                className="w-full"
+                                                onClick={toggleCart}
+                                            >
+                                                <HiOutlineShoppingCart className="h-4 w-4"/>
+                                                {isInCart ? 'Remove from cart' : 'Add to cart'}
+                                            </Button>
+                                        </div>
+
+                                        <ul className="mt-5 space-y-2 border-t border-ink-200 pt-4 text-sm text-ink-600">
+                                            <li className="flex items-center gap-2">
+                                                <HiCheckCircle className="h-4 w-4 shrink-0 text-success"/>
+                                                {lessons.length} on-demand {lessons.length === 1 ? 'lesson' : 'lessons'}
+                                            </li>
+                                            <li className="flex items-center gap-2">
+                                                <HiCheckCircle className="h-4 w-4 shrink-0 text-success"/>
+                                                Lifetime access
+                                            </li>
+                                            <li className="flex items-center gap-2">
+                                                <HiCheckCircle className="h-4 w-4 shrink-0 text-success"/>
+                                                Certificate on completion
+                                            </li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            )}
+
+                            <div className="surface-card p-5">
+                                <h2 className="text-base font-bold">Course details</h2>
+                                <dl className="mt-3 space-y-2.5 text-sm">
+                                    <div className="flex justify-between gap-4">
+                                        <dt className="text-ink-500">Category</dt>
+                                        <dd className="truncate font-medium">{course.Department}</dd>
+                                    </div>
+                                    <div className="flex justify-between gap-4">
+                                        <dt className="text-ink-500">Instructor</dt>
+                                        <dd className="truncate font-medium">
+                                            {course.Username?.Username || 'Unknown'}
+                                        </dd>
+                                    </div>
+                                    <div className="flex justify-between gap-4">
+                                        <dt className="text-ink-500">Price</dt>
+                                        <dd className="font-medium">{formatPrice(course.Price)}</dd>
+                                    </div>
+                                    <div className="flex justify-between gap-4">
+                                        <dt className="text-ink-500">Lessons</dt>
+                                        <dd className="font-medium">{lessons.length}</dd>
+                                    </div>
+                                </dl>
+                            </div>
+                        </div>
+                    </aside>
                 </div>
             </div>
 
-            {/* Session Expired Dialog */}
-            <Dialog open={showLoginDialog} onOpenChange={setShowLoginDialog}>
-                <DialogContent className="bg-white/10 backdrop-blur-2xl border border-white/20 text-white">
-                    <DialogHeader>
-                        <DialogTitle className="text-2xl text-center">Session Expired</DialogTitle>
-                    </DialogHeader>
-                    <p className="text-center text-gray-300 mb-6">Log in again to continue.</p>
-                    <Button
-                        onClick={() => {
-                            if (typeof window !== 'undefined') {
-                                localStorage.removeItem('token');
-                            }
-                            router.push('/login');
-                            logout();
-                        }}
-                        className="w-full bg-gradient-to-r from-pink-600 to-purple-600"
-                    >
-                        Login Again
-                    </Button>
-                </DialogContent>
-            </Dialog>
-        </>
+        </div>
     );
 };
 

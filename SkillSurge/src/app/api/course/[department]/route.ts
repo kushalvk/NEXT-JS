@@ -1,41 +1,38 @@
-import { NextRequest } from "next/server";
+import {NextRequest} from "next/server";
 import dbConnect from "@/app/lib/dbConnect";
 import CourseModel from "@/models/Course";
+import {badRequest, ok, serverError} from "@/utils/apiResponse";
 
 export async function GET(
-  req: NextRequest,
-  context: { params: Promise<{ department: string }> }
+    req: NextRequest,
+    context: { params: Promise<{ department: string }> }
 ) {
-    await dbConnect();
-
-    const {department} = await context.params;
-
-    if (!department) {
-        return new Response(
-            JSON.stringify({ success: false, message: "Department required" }),
-            { status: 400 }
-        );
-    }
-
     try {
-        const courses = await CourseModel.find({ Department: department });
+        await dbConnect();
 
-        if (!courses || courses.length === 0) {
-            return new Response(
-                JSON.stringify({ success: false, message: "No courses found" }),
-                { status: 404 }
-            );
-        }
+        const {department} = await context.params;
 
-        return new Response(
-            JSON.stringify({ success: true, message: "Courses fetched", courses }),
-            { status: 200 }
-        );
+        if (!department) return badRequest("Department required");
+
+        const {searchParams} = new URL(req.url);
+        const limit = Math.min(Math.max(Number(searchParams.get("limit")) || 60, 1), 100);
+        const page = Math.max(Number(searchParams.get("page")) || 1, 1);
+
+        // Served by the {Department, createdAt} index.
+        const [courses, total] = await Promise.all([
+            CourseModel.find({Department: department})
+                .select("Image Course_Name Description Department Price Username createdAt Video.Description")
+                .populate("Username", "Username")
+                .sort({createdAt: -1})
+                .skip((page - 1) * limit)
+                .limit(limit)
+                .lean(),
+            CourseModel.countDocuments({Department: department}),
+        ]);
+
+        // An empty category is a valid answer, not a 404.
+        return ok("Courses fetched", {courses, page, limit, total, hasMore: page * limit < total});
     } catch (error) {
-        console.error(error);
-        return new Response(
-            JSON.stringify({ success: false, message: "Server error" }),
-            { status: 500 }
-        );
+        return serverError("course:department", error);
     }
 }

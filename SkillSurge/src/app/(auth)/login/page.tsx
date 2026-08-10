@@ -3,26 +3,29 @@
 import React, {useState} from 'react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
-import {loginService} from '@/services/AuthService';
 import {useRouter} from 'next/navigation';
+import {HiEye, HiEyeOff, HiOutlineCheck, HiOutlineClipboardCopy} from 'react-icons/hi';
+import {loginService} from '@/services/AuthService';
 import {LoginData} from '@/utils/Responses';
 import {useAuth} from '@/context/AuthContext';
-import Image from 'next/image';
-import {HiEye, HiEyeOff} from 'react-icons/hi';
+import {DEMO_PASSWORD, DEMO_USERNAME} from '@/utils/demoUser';
+import {Button} from '@/components/ui/button';
+import {Input} from '@/components/ui/input';
 
 const Login: React.FC = () => {
     const [Username, setUsername] = useState<string>('');
     const [Password, setPassword] = useState<string>('');
     const [showPassword, setShowPassword] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [copied, setCopied] = useState<'username' | 'password' | null>(null);
     const router = useRouter();
     const {login} = useAuth();
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
+    const signIn = async (payload: LoginData) => {
+        if (isSubmitting) return;
+        setIsSubmitting(true);
 
         const loadingToastId = toast.loading('Signing you in...');
-
-        const payload: LoginData = {Username, Password};
 
         try {
             const response = await loginService(payload);
@@ -36,160 +39,154 @@ const Login: React.FC = () => {
             }
         } catch {
             toast.error('Network error. Please try again.', {id: loadingToastId});
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        await signIn({Username, Password});
+    };
+
+    const handleDemoLogin = async () => {
+        setUsername(DEMO_USERNAME);
+        setPassword(DEMO_PASSWORD);
+        await signIn({Username: DEMO_USERNAME, Password: DEMO_PASSWORD});
+    };
+
+    const copyCredential = async (field: 'username' | 'password', value: string) => {
+        try {
+            await navigator.clipboard.writeText(value);
+            setCopied(field);
+            setTimeout(() => setCopied(null), 1500);
+        } catch {
+            toast.error('Could not copy to clipboard');
         }
     };
 
     return (
-        <>
-            {/* Animated Gradient Background */}
-            <div className="fixed inset-0 -z-10 overflow-hidden">
-                <div
-                    className="absolute inset-0 bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 opacity-90"/>
-                <div
-                    className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_var(--tw-gradient-stops))] from-cyan-400/20 via-transparent to-transparent animate-pulse"/>
+        <div className="animate-rise">
+            <div className="mb-8">
+                <h1 className="text-2xl font-bold sm:text-3xl">Welcome back</h1>
+                <p className="mt-2 text-[0.9375rem] text-ink-500">
+                    Sign in to pick up where you left off.
+                </p>
             </div>
 
-            <div className="min-h-screen flex flex-col lg:flex-row items-center justify-center p-4 sm:p-6 font-sans">
+            <form onSubmit={handleSubmit} className="space-y-5" noValidate>
+                <div>
+                    <label htmlFor="username" className="field-label">Username</label>
+                    <Input
+                        id="username"
+                        value={Username}
+                        onChange={(e) => setUsername(e.target.value)}
+                        placeholder="yourusername"
+                        autoComplete="username"
+                        required
+                    />
+                </div>
 
-                {/* Left Side - SVG Illustration */}
-                <div className="hidden lg:flex flex-1 items-center justify-center p-8 animate-fade-in">
+                <div>
+                    <div className="flex items-baseline justify-between">
+                        <label htmlFor="password" className="field-label">Password</label>
+                        <Link
+                            href="/forgot-password"
+                            className="mb-1.5 text-xs font-medium text-brand-700 hover:underline"
+                        >
+                            Forgot password?
+                        </Link>
+                    </div>
                     <div className="relative">
-                        <Image
-                            src="/svg/login.svg"
-                            alt="Welcome back to learning"
-                            width={500}
-                            height={500}
-                            className="max-w-md w-full drop-shadow-2xl"
-                            priority
+                        <Input
+                            id="password"
+                            type={showPassword ? 'text' : 'password'}
+                            value={Password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            placeholder="••••••••"
+                            autoComplete="current-password"
+                            className="pr-11"
+                            required
                         />
-                        <div
-                            className="absolute -inset-4 bg-gradient-to-r from-cyan-400/20 to-purple-600/20 blur-3xl -z-10 animate-pulse"/>
+                        <button
+                            type="button"
+                            onClick={() => setShowPassword(!showPassword)}
+                            aria-label={showPassword ? 'Hide password' : 'Show password'}
+                            className="absolute inset-y-0 right-0 grid w-11 place-items-center text-ink-400 transition hover:text-ink-700"
+                        >
+                            {showPassword ? <HiEyeOff className="h-5 w-5"/> : <HiEye className="h-5 w-5"/>}
+                        </button>
                     </div>
                 </div>
 
-                {/* Right Side - Login Form */}
-                <div className="flex-1 flex items-center justify-center p-4 sm:p-8 w-full max-w-xl">
-                    <div
-                        className="w-full bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl p-8 sm:p-10 transform transition-all duration-500 hover:scale-[1.02] hover:shadow-3xl">
+                <Button type="submit" size="lg" className="w-full" disabled={isSubmitting}>
+                    {isSubmitting ? 'Signing in...' : 'Sign in'}
+                </Button>
+            </form>
 
-                        {/* Header */}
-                        <div className="text-center mb-8">
-                            <h1 className="text-3xl sm:text-4xl font-black bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-purple-600">
-                                Welcome Back
-                            </h1>
-                            <p className="mt-2 text-gray-600">Continue your learning journey</p>
-                        </div>
+            <p className="mt-5 text-center text-sm text-ink-500">
+                New to SkillSurge?{' '}
+                <Link href="/signup" className="font-semibold text-brand-700 hover:underline">
+                    Create an account
+                </Link>
+            </p>
 
-                        {/* Form */}
-                        <form onSubmit={handleSubmit} className="space-y-6">
-                            {/* Username */}
-                            <div>
-                                <label htmlFor="username" className="block text-sm font-semibold text-gray-700 mb-2">
-                                    Username
-                                </label>
-                                <input
-                                    type="text"
-                                    id="username"
-                                    value={Username}
-                                    onChange={(e) => setUsername(e.target.value)}
-                                    className="w-full px-4 py-3.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-800 placeholder-gray-400 transition-all duration-300"
-                                    placeholder="yourusername"
-                                    required
-                                    autoComplete="username"
-                                />
-                            </div>
+            {/* Demo account */}
+            <div className="mt-8 rounded-xl border border-ink-200 bg-ink-25 p-5">
+                <div className="mb-3 flex items-center justify-between gap-3">
+                    <h2 className="text-sm font-bold text-ink-900">Try the demo account</h2>
+                    <span className="chip bg-warning-soft text-ink-800">Read-only</span>
+                </div>
 
-                            {/* Password */}
-                            <div className="relative">
-                                <label htmlFor="password" className="block text-sm font-semibold text-gray-700 mb-2">
-                                    Password
-                                </label>
-                                <input
-                                    type={showPassword ? 'text' : 'password'}
-                                    id="password"
-                                    value={Password}
-                                    onChange={(e) => setPassword(e.target.value)}
-                                    className="w-full px-4 py-3.5 pr-12 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-800 placeholder-gray-400 transition-all duration-300"
-                                    placeholder="••••••••"
-                                    required
-                                    autoComplete="current-password"
-                                />
+                <dl className="space-y-2">
+                    {([
+                        {field: 'username', label: 'Username', value: DEMO_USERNAME},
+                        {field: 'password', label: 'Password', value: DEMO_PASSWORD},
+                    ] as const).map(({field, label, value}) => (
+                        <div
+                            key={field}
+                            className="flex items-center justify-between gap-3 rounded-lg border border-ink-200 bg-white px-3 py-2"
+                        >
+                            <dt className="text-xs font-medium text-ink-500">{label}</dt>
+                            <dd className="flex min-w-0 items-center gap-2">
+                                <code className="truncate font-mono text-sm font-semibold text-ink-900">{value}</code>
                                 <button
                                     type="button"
-                                    onClick={() => setShowPassword(!showPassword)}
-                                    className="absolute right-3 top-10 text-gray-500 hover:text-indigo-600 transition-colors"
-                                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                                    onClick={() => copyCredential(field, value)}
+                                    aria-label={`Copy demo ${label.toLowerCase()}`}
+                                    className="text-ink-400 transition hover:text-brand-700"
                                 >
-                                    {showPassword ? <HiEyeOff className="w-5 h-5"/> : <HiEye className="w-5 h-5"/>}
+                                    {copied === field
+                                        ? <HiOutlineCheck className="h-4 w-4 text-success"/>
+                                        : <HiOutlineClipboardCopy className="h-4 w-4"/>}
                                 </button>
-                            </div>
-
-                            {/* Links */}
-                            <div className="flex flex-col sm:flex-row justify-between items-center gap-3 text-sm">
-                                <Link
-                                    href="/forgot-password"
-                                    className="text-indigo-600 hover:text-indigo-800 font-medium hover:underline transition-all"
-                                >
-                                    Forgot Password?
-                                </Link>
-                                <Link
-                                    href="/signup"
-                                    className="text-purple-600 hover:text-purple-800 font-medium hover:underline transition-all"
-                                >
-                                    Create Account
-                                </Link>
-                            </div>
-
-                            {/* Submit Button */}
-                            <button
-                                type="submit"
-                                className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold py-3.5 rounded-xl hover:from-indigo-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transform transition-all duration-300 hover:scale-105 shadow-lg"
-                            >
-                                Sign In
-                            </button>
-                        </form>
-
-                        {/* Divider */}
-                        <div className="flex items-center my-6">
-                            <div className="flex-1 h-px bg-gray-300"></div>
-                            <span className="px-4 text-xs text-gray-500 font-medium">OR</span>
-                            <div className="flex-1 h-px bg-gray-300"></div>
+                            </dd>
                         </div>
+                    ))}
+                </dl>
 
-                        {/* Footer */}
-                        <p className="text-center text-xs text-gray-500 mt-8">
-                            By signing in, you agree to our{' '}
-                            <Link href="/terms" className="text-indigo-600 hover:underline">
-                                Terms
-                            </Link>{' '}
-                            and{' '}
-                            <Link href="/privacy" className="text-indigo-600 hover:underline">
-                                Privacy Policy
-                            </Link>
-                            .
-                        </p>
-                    </div>
-                </div>
+                <Button
+                    type="button"
+                    variant="outline"
+                    className="mt-4 w-full"
+                    onClick={handleDemoLogin}
+                    disabled={isSubmitting}
+                >
+                    Sign in as demo
+                </Button>
+
+                <p className="mt-3 text-xs leading-relaxed text-ink-500">
+                    Browse courses, watch lessons and explore the dashboard. Buying, uploading and profile changes
+                    are disabled on this account.
+                </p>
             </div>
 
-            {/* Custom Animations */}
-            <style jsx>{`
-                @keyframes fade-in {
-                    from {
-                        opacity: 0;
-                        transform: translateY(20px);
-                    }
-                    to {
-                        opacity: 1;
-                        transform: translateY(0);
-                    }
-                }
-
-                .animate-fade-in {
-                    animation: fade-in 0.6s ease-out;
-                }
-            `}</style>
-        </>
+            <p className="mt-8 text-center text-xs leading-relaxed text-ink-400">
+                By signing in you agree to our{' '}
+                <Link href="/terms" className="underline hover:text-ink-600">Terms</Link> and{' '}
+                <Link href="/privacy" className="underline hover:text-ink-600">Privacy Policy</Link>.
+            </p>
+        </div>
     );
 };
 

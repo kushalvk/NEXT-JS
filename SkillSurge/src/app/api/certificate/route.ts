@@ -1,88 +1,63 @@
 import dbConnect from "@/app/lib/dbConnect";
 import {getVerifiedUser} from "@/utils/verifyRequest";
 import CourseModel from "@/models/Course";
-import UserModel, {BuyCourse, Certifiate, WatchedCourse} from "@/models/User";
+import UserModel from "@/models/User";
+import {badRequest, conflict, forbidden, isValidObjectId, notFound, ok, readBody, serverError} from "@/utils/apiResponse";
 
 export async function POST(req: Request) {
-    await dbConnect();
-
     try {
-        const formData = await req.formData();
-        const courseId = formData.get("courseId")?.toString();
+        await dbConnect();
 
-        if (!courseId) {
-            return Response.json({
-                success: false,
-                message: "Course Id is required",
-            }, {status: 400});
-        }
+        const {courseId} = await readBody(req);
+
+        if (!isValidObjectId(courseId)) return badRequest("A valid Course Id is required");
 
         const {user, errorResponse} = await getVerifiedUser(req);
         if (errorResponse) return errorResponse;
 
-        if (!user.Buy_Course.some((id: BuyCourse) => id.courseId.toString() === courseId)) {
-            return Response.json({
-                success: false,
-                message: "Your are not bought this course",
-            }, {status: 403});
+        if (!user.Buy_Course.some((entry) => entry.courseId === courseId)) {
+            return forbidden("You have not bought this course");
         }
 
-        const course = await CourseModel.findById(courseId);
-        if (!course) {
-            return Response.json({
-                success: false,
-                message: "Course not found",
-            }, {status: 404});
+        // The user object is already live, so the extra re-fetch this handler
+        // used to do is no longer needed.
+        if (user.Certificate.some((cert) => cert.courseId === courseId)) {
+            return conflict("Certificate already issued for this course");
         }
 
-        const totalVideo = course.Video.length;
+        const course = await CourseModel.findById(courseId).select("Course_Name Video.Video_Url").lean();
+        if (!course || Array.isArray(course)) return notFound("Course not found");
 
-        const freshUser = await UserModel.findById(user._id);
-        if (!freshUser) {
-            return Response.json({
-                success: false,
-                message: "User not found",
-            }, {status: 404});
+        const totalVideos = (course.Video || []).length;
+        const watched = user.Watched_Course.find((entry) => entry.courseId === courseId);
+        const watchCount = watched?.completedVideos.length ?? 0;
+
+        if (totalVideos === 0 || watchCount < totalVideos) {
+            return forbidden("You must complete all videos to get the certificate");
         }
 
-        const userCourseProgress = freshUser.Watched_Course.find((course: WatchedCourse) => course.courseId.toString() === courseId);
+        const issuedAt = new Date();
 
-        const watchCount = userCourseProgress?.completedVideos.length || 0;
+        // Conditional write: if two requests race, only the first one adds a
+        // certificate.
+        const result = await UserModel.updateOne(
+            {_id: user._id, "Certificate.courseId": {$ne: courseId}},
+            {$push: {Certificate: {courseId, issuedAt}}}
+        );
 
-        const alreadyIssued = freshUser.Certificate.some((cert: Certifiate) => cert.courseId.toString() === courseId);
-
-        if (alreadyIssued) {
-            return Response.json({
-                success: false,
-                message: "Certificate already issued for this course",
-            }, {status: 409});
+        if (result.modifiedCount === 0) {
+            return conflict("Certificate already issued for this course");
         }
 
-        if (watchCount < totalVideo) {
-            return Response.json({
-                success: false,
-                message: "You must complete all videos to get the certificate"
-            }, {status: 403});
-        }
-
-        await UserModel.findByIdAndUpdate(user._id, {
-            $push: {
-                Certificate: {
-                    courseId: course._id,
-                    issuedAt: new Date()
-                }
-            }
+        return ok("Certificate issued successfully", {
+            certificate: {
+                courseId,
+                courseName: course.Course_Name,
+                issuedTo: user.Full_name || user.Username,
+                issuedAt,
+            },
         });
-
-        return Response.json({
-            success: true,
-            message: "Certificate issued successfully"
-        }, {status: 200});
     } catch (error) {
-        console.error("Error issuing certificate:", error);
-        return Response.json({
-            success: false,
-            message: "Internal server error while issuing certificate"
-        }, {status: 500});
+        return serverError("certificate", error);
     }
 }

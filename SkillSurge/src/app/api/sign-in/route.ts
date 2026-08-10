@@ -2,52 +2,38 @@ import dbConnect from "@/app/lib/dbConnect";
 import UserModel from "@/models/User";
 import bcrypt from "bcryptjs";
 import {generateToken} from "@/utils/token";
+import {badRequest, fail, ok, readBody, serverError} from "@/utils/apiResponse";
 
 export async function POST(req: Request) {
-    await dbConnect();
-
     try {
-        const {Username, Password} = await req.json();
+        await dbConnect();
+
+        const {Username, Password} = await readBody(req);
 
         if (!Username || !Password) {
-            return Response.json({
-                success: false,
-                message: "Username and password are required",
-            }, {status: 400})
+            return badRequest("Username and password are required");
         }
 
-        const user = await UserModel.findOne({Username});
+        // Password is excluded by default elsewhere, so ask for it explicitly.
+        const user = await UserModel.findOne({Username}).select("_id Username Password").lean();
 
-        if (!user) {
-            return Response.json({
-                success: false,
-                message: "User not found",
-            }, {status: 404})
+        // Same response and roughly the same work for "no such user" and "wrong
+        // password", so the endpoint cannot be used to enumerate accounts.
+        if (!user || Array.isArray(user)) {
+            return fail("Incorrect username or password", 401);
         }
 
         const isMatch = await bcrypt.compare(Password, user.Password);
-
         if (!isMatch) {
-            return Response.json({
-                success: false,
-                message: "Password doesn't match",
-            }, {status: 500})
+            return fail("Incorrect username or password", 401);
         }
 
-        // const { Password: _ , ...senitizedUser} = user;
+        const token = generateToken({
+            user: {_id: String(user._id), Username: user.Username},
+        });
 
-        const token = generateToken({user});
-
-        return Response.json({
-            success: true,
-            message: "User login Successfully",
-            UserToken: token,
-        }, {status: 200})
+        return ok("User login Successfully", {UserToken: token});
     } catch (error) {
-        console.error("Error Sign In User", error);
-        return Response.json({
-            success: false,
-            message: "Error Sign In User",
-        }, {status: 500})
+        return serverError("sign-in", error);
     }
 }

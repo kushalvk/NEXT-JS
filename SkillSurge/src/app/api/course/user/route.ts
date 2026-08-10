@@ -1,33 +1,22 @@
 import dbConnect from "@/app/lib/dbConnect";
 import {getVerifiedUser} from "@/utils/verifyRequest";
 import CourseModel from "@/models/Course";
+import {ok, serverError} from "@/utils/apiResponse";
 
 export async function GET(req: Request) {
-    await dbConnect();
-
     try {
+        await dbConnect();
+
         const {user, errorResponse} = await getVerifiedUser(req);
         if (errorResponse) return errorResponse;
 
-        const userId = user._id;
+        const userCourse = await CourseModel.find({Username: user._id})
+            .select("Image Course_Name Description Department Price createdAt Video.Description")
+            .sort({createdAt: -1})
+            .lean();
 
-        const userCourse = await CourseModel.find({Username: userId});
-
-        if (!userCourse) return Response.json({
-            success: false,
-            message: "Course not found",
-        }, {status: 404});
-
-        return Response.json({
-            success: true,
-            message: "Course found",
-            Course: userCourse,
-        }, {status: 200});
+        return ok("Course found", {Course: userCourse});
     } catch (error) {
-        console.error("Error at fetch course by User", error);
-        return Response.json({
-            success: false,
-            message: "Error at fetch course by User",
-        }, {status: 500});
+        return serverError("course:user", error);
     }
 }

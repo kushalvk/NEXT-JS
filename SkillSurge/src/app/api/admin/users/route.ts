@@ -2,92 +2,82 @@ import dbConnect from "@/app/lib/dbConnect";
 import {getVerifiedUser} from "@/utils/verifyRequest";
 import UserModel from "@/models/User";
 import CourseModel from "@/models/Course";
+import {badRequest, forbidden, isValidObjectId, notFound, ok, readBody, serverError} from "@/utils/apiResponse";
+import {ADMIN_USERNAME, isAdmin} from "@/utils/roles";
 
 export async function GET(req: Request) {
-    await dbConnect();
-
     try {
+        await dbConnect();
+
         const {user, errorResponse} = await getVerifiedUser(req);
         if (errorResponse) return errorResponse;
 
-        if (user.Username !== "Admin") {
-            return Response.json({
-                success: false,
-                message: "You are not authorized to get all Users",
-            }, {status: 403});
+        if (!isAdmin(user)) {
+            return forbidden("You are not authorized to get all Users");
         }
 
-        const Users = await UserModel.find({Username: {$ne: "Admin"}});
+        // Explicitly excludes Password - this used to return every hash.
+        const Users = await UserModel.find({Username: {$ne: ADMIN_USERNAME}})
+            .select("-Password")
+            .sort({createdAt: -1})
+            .lean();
 
-        if (Users.length === 0) {
-            return Response.json({
-                success: false,
-                message: "No Users Found",
-            })
-        }
-
-        return Response.json({
-            success: true,
-            message: "Users found",
-            Users
-        }, {status: 200});
+        return ok("Users found", {Users, total: Users.length});
     } catch (error) {
-        console.log("Error at fetch all users ", error);
-        return Response.json({
-            success: false,
-            message: "Error at fetch all users",
-        }, {status: 500});
+        return serverError("admin:users:GET", error);
     }
 }
 
 export async function DELETE(req: Request) {
-    await dbConnect();
-
     try {
-        const formDate = await req.formData();
-        const userId = formDate.get("user_Id")?.toString() || null;
-
-        if (!userId) {
-            return Response.json({
-                success: false,
-                message: "User Id is required",
-            }, {status: 400});
-        }
+        await dbConnect();
 
         const {user, errorResponse} = await getVerifiedUser(req);
         if (errorResponse) return errorResponse;
 
-        if (user.Username !== "Admin") {
-            return Response.json({
-                success: false,
-                message: "You are not authorized to delete Users",
-            }, {status: 403});
+        if (!isAdmin(user)) {
+            return forbidden("You are not authorized to delete Users");
         }
 
-        const userToDelete = await UserModel.findById(userId);
+        const body = await readBody(req);
+        const userId = body.user_Id || body.userId;
 
-        if (userToDelete.Username === "Admin") {
-            return Response.json({
-                success: false,
-                message: "This User is not for delete",
-            }, {status: 403});
+        if (!isValidObjectId(userId)) return badRequest("A valid User Id is required");
+
+        const userToDelete = await UserModel.findById(userId).select("Username Upload_Course").lean();
+
+        // Previously unchecked, so a bad id threw and returned a 500.
+        if (!userToDelete || Array.isArray(userToDelete)) return notFound("User not found");
+
+        if (userToDelete.Username === ADMIN_USERNAME) {
+            return forbidden("This User is not for delete");
         }
 
-        if (userToDelete.Upload_Course.length >= 0) {
-            await CourseModel.deleteMany({_id: userToDelete.Upload_Course});
+        const ownedCourses = (userToDelete.Upload_Course || []).map(String);
+
+        if (ownedCourses.length > 0) {
+            await CourseModel.deleteMany({_id: {$in: ownedCourses}});
+
+            // Otherwise every other user keeps dangling references to courses
+            // that no longer exist.
+            await UserModel.updateMany(
+                {},
+                {
+                    $pull: {
+                        Favourite: {$in: ownedCourses},
+                        Cart: {$in: ownedCourses},
+                        Buy_Course: {courseId: {$in: ownedCourses}},
+                        Watched_Course: {courseId: {$in: ownedCourses}},
+                        Certificate: {courseId: {$in: ownedCourses}},
+                    },
+                }
+            );
         }
 
         await UserModel.findByIdAndDelete(userId);
 
-        return Response.json({
-            success: true,
-            message: "User Deleted successfully",
-        }, {status: 200});
+        return ok("User Deleted successfully");
     } catch (error) {
-        console.error("Error at deleting user ", error);
-        return Response.json({
-            success: false,
-            message: "Error at delete user",
-        }, {status: 500});
+        return serverError("admin:users:DELETE", error);
     }
 }
