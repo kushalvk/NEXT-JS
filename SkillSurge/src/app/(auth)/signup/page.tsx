@@ -8,6 +8,7 @@ import {HiEye, HiEyeOff} from 'react-icons/hi';
 import {signup} from '@/services/AuthService';
 import {Button} from '@/components/ui/button';
 import {Input} from '@/components/ui/input';
+import {PASSWORD_REQUIREMENT, PASSWORD_RULE} from '@/utils/validation';
 
 export interface SignupData {
     Username: string;
@@ -15,8 +16,6 @@ export interface SignupData {
     Password: string;
     Full_name: string;
 }
-
-const PASSWORD_RULE = /^(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{8,}$/;
 
 const SignUp: React.FC = () => {
     const [Username, setUsername] = useState('');
@@ -36,7 +35,7 @@ const SignUp: React.FC = () => {
         setError('');
 
         if (!PASSWORD_RULE.test(Password)) {
-            setError('Password must be at least 8 characters and include an uppercase letter, a lowercase letter and a number.');
+            setError(PASSWORD_REQUIREMENT + '.');
             return;
         }
 
@@ -133,7 +132,7 @@ const SignUp: React.FC = () => {
                         </button>
                     </div>
                     <p className="field-hint">
-                        At least 8 characters, with an uppercase letter, a lowercase letter and a number.
+                        {PASSWORD_REQUIREMENT}.
                     </p>
                 </div>
 

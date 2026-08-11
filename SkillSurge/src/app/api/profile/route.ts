@@ -3,9 +3,7 @@ import {getVerifiedUser} from "@/utils/verifyRequest";
 import UserModel from "@/models/User";
 import {badRequest, conflict, ok, readBody, serverError} from "@/utils/apiResponse";
 import {RESERVED_USERNAMES} from "@/utils/roles";
-
-const EMAIL_RULE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const USERNAME_RULE = /^[a-zA-Z0-9_.-]{3,30}$/;
+import {EMAIL_RULE, USERNAME_REQUIREMENT, USERNAME_RULE} from "@/utils/validation";
 
 export async function GET(req: Request) {
     try {
@@ -36,7 +34,7 @@ export async function PUT(req: Request) {
             const Username = body.Username.trim();
 
             if (!USERNAME_RULE.test(Username)) {
-                return badRequest("Username must be 3-30 characters, using letters, numbers, dot, dash or underscore");
+                return badRequest(USERNAME_REQUIREMENT);
             }
 
             // Admin is "whoever is called Admin", so renaming yourself into a

@@ -91,6 +91,13 @@ export async function getVerifiedUser(req: Request): Promise<VerifyResult> {
         return {user: null, errorResponse: fail("Account no longer exists", 401)};
     }
 
+    // A password reset invalidates every token issued before it, so a stolen
+    // token stops working the moment the owner resets their password.
+    const changedAt = (doc as {Password_Changed_At?: Date | null}).Password_Changed_At;
+    if (changedAt && typeof decoded.iat === "number" && decoded.iat * 1000 < new Date(changedAt).getTime()) {
+        return {user: null, errorResponse: fail("Your password changed. Please sign in again.", 401)};
+    }
+
     const user = normalise(doc as Record<string, unknown>);
 
     // The demo account may read anything it is allowed to see, but never write.

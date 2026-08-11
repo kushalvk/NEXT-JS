@@ -3,10 +3,7 @@ import UserModel from "@/models/User";
 import bcrypt from "bcryptjs";
 import {badRequest, conflict, ok, readBody, serverError} from "@/utils/apiResponse";
 import {RESERVED_USERNAMES} from "@/utils/roles";
-
-const PASSWORD_RULE = /^(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{8,}$/;
-const EMAIL_RULE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const USERNAME_RULE = /^[a-zA-Z0-9_.-]{3,30}$/;
+import {EMAIL_RULE, PASSWORD_REQUIREMENT, PASSWORD_RULE, USERNAME_REQUIREMENT, USERNAME_RULE} from "@/utils/validation";
 
 export async function POST(req: Request) {
     try {
@@ -23,7 +20,7 @@ export async function POST(req: Request) {
         }
 
         if (!USERNAME_RULE.test(Username)) {
-            return badRequest("Username must be 3-30 characters, using letters, numbers, dot, dash or underscore");
+            return badRequest(USERNAME_REQUIREMENT);
         }
 
         // Roles are derived from the username, so the privileged ones cannot be
@@ -38,9 +35,7 @@ export async function POST(req: Request) {
 
         // Enforce server-side what the signup form asks for client-side.
         if (!PASSWORD_RULE.test(Password)) {
-            return badRequest(
-                "Password must be at least 8 characters and include an uppercase letter, a lowercase letter and a number"
-            );
+            return badRequest(PASSWORD_REQUIREMENT);
         }
 
         const existing = await UserModel.findOne({$or: [{Username}, {Email}]})

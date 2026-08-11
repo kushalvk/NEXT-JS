@@ -45,6 +45,22 @@ export const loggedUser = async () => {
     }
 }
 
+/**
+ * Changes a password given the account's email address. Returns the API's own
+ * message on failure (wrong email, weak password) so the form can show it.
+ */
+export const resetPasswordByEmail = async (
+    Email: string,
+    Password: string
+): Promise<CommonApiResponse | undefined> => {
+    try {
+        const response = await axios.post<CommonApiResponse>('/api/forgot-password', {Email, Password});
+        return response.data;
+    } catch (error) {
+        return Error(error);
+    }
+}
+
 export const updatedProfile = async (data: FormData): Promise<LoginResponse | undefined> => {
     try {
         const token = localStorage.getItem('token');

@@ -76,6 +76,8 @@ export interface User extends Document {
     Certificate: Certifiate[];
     RazorpayId: string;
     createdAt: Date;
+    /** Tokens issued before this moment are rejected, so a reset ends old sessions. */
+    Password_Changed_At?: Date | null;
 }
 
 const UserSchema: Schema<User> = new Schema({
@@ -123,7 +125,12 @@ const UserSchema: Schema<User> = new Schema({
         type: String,
         default: "",
         required: false
-    }
+    },
+    // Set whenever the password changes, to invalidate older sessions.
+    Password_Changed_At: {
+        type: Date,
+        default: null,
+    },
 }, { timestamps: true });
 
 /**
